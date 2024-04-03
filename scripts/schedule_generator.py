@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta, time
 from pathlib import Path
 import logging
-from schedListTxtCreator import create_readable_txt, create_alternative_schedule
+from scripts.schedListTxtCreator import create_readable_txt, create_alternative_schedule
 from common import read_blocks, read_tracks
 
 log = logging.getLogger()

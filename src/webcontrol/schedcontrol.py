@@ -1,3 +1,5 @@
+from math import pi
+import sys
 from oscpy.client import OSCClient
 from oscpy.server import OSCThreadServer, ServerClass
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -15,15 +17,44 @@ from common import read_tracks
 server = OSCThreadServer()
 
 
+default_config_file_path = Path("showcontrol")
+default_config_file_locations = [
+    Path("/home/leto/data/projects/arbeit/akt/showcontrol/config"),  # TODO delet
+    Path(os.getcwd()) / "config",
+    Path.home() / ".config" / default_config_file_path,
+    Path("/etc") / default_config_file_path,
+    Path("/usr/local/etc") / default_config_file_path,
+]
+
+schedule_filename = Path("schedule.yml")
+config_file_filename = Path("showcontrol_config.yml")
+tracks_dirname = Path("tracks")
+
+
 @ServerClass
 class SchedControl(object):
     def __init__(self):
         global server
 
-        self.schedule_file = "/etc/seamless/schedule.yml"
-        self.config_file = "/etc/seamless/showcontrol_config.yml"
-        self.tracks_dir = Path("/etc/seamless/tracks/")
+        for possible_config_path in default_config_file_locations:
+            print(possible_config_path)
+            if possible_config_path.exists():
+                print(f"loading configs from {possible_config_path}")
 
+                self.schedule_file = possible_config_path / schedule_filename
+                self.config_file = possible_config_path / config_file_filename
+                self.tracks_dir = possible_config_path / tracks_dirname
+
+                if not (self.schedule_file.exists() and self.schedule_file.is_file()):
+                    raise FileNotFoundError("No Schedule File found")
+                if not (self.config_file.exists() and self.config_file.is_file()):
+                    raise FileNotFoundError("No Config File found")
+                if not (self.tracks_dir.exists() and self.tracks_dir.is_dir()):
+                    raise FileNotFoundError("No tracks dir found")
+                break
+        else:
+            print("could not find config directory, exiting...")
+            sys.exit(1)
         with open(self.config_file) as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
 
