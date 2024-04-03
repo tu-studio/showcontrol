@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, time
 from pathlib import Path
 import logging
 from schedListTxtCreator import create_readable_txt, create_alternative_schedule
+from common import read_blocks, read_tracks
 
 log = logging.getLogger()
 
@@ -45,26 +46,15 @@ def round_up_time(timestamp: datetime, round_to_minutes=5):
 
 
 def main():
-    track_files = ""
-    block_files = ""
-
     # load tracks
-    for file in os.listdir(path_config / "tracks"):
-        if file.endswith(".yml"):
-            with open(path_config / "tracks" / file) as f:
-                track_files += f.read()
-    tracks = yaml.load(track_files, Loader=yaml.FullLoader)
-
+    tracks = read_tracks(path_config / "tracks")
+    print(tracks)
     # load blocks
-    for file in os.listdir(path_config / "blocks"):
-        if file.endswith(".yml"):
-            with open(path_config / "blocks" / file) as f:
-                block_files += f.read()
-    blocks = yaml.load(block_files, Loader=yaml.FullLoader)
+    blocks = read_blocks(path_config / "blocks")
 
     # load block plan
     with open(path_config / "blockplan.yml") as f:
-        blockplan = yaml.load(f.read(), Loader=yaml.FullLoader)
+        blockplan = yaml.load(f, Loader=yaml.FullLoader)
 
     # find days with explicit schedules
     days_explicit_schedule = set(blockplan.keys()) - set(["default"])
