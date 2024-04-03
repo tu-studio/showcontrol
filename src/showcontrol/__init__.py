@@ -1,8 +1,11 @@
 import os
 
 from flask import Flask
-from schedcontrol import SchedControl
+from .schedcontrol import SchedControl
 from xdg import xdg_state_home
+from . import _version
+
+__version__ = _version.get_versions()["version"]
 
 schedctrl = SchedControl()
 
@@ -17,7 +20,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY="dev",
         # SERVER_NAME='127.0.0.1:8080',
-        DATABASE=os.path.join(app.instance_path, "webcontrol.sqlite"),
+        DATABASE=os.path.join(app.instance_path, "showcontrol.sqlite"),
     )
 
     if test_config is None:
@@ -52,5 +55,6 @@ def create_app(test_config=None):
 
 
 def run():
+    """can be used to run this app, recommended way is `flask --app showcontrol run`"""
     webapp = create_app()
     webapp.run(host="0.0.0.0", port=8080)

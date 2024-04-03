@@ -3,9 +3,9 @@ from werkzeug.exceptions import abort
 from threading import Thread
 
 import apscheduler
-from webcontrol import schedctrl
-from webcontrol.auth import login_required
-from webcontrol.db import get_db
+from showcontrol import schedctrl
+from showcontrol.auth import login_required
+from showcontrol.db import get_db
 
 bp = Blueprint("showcontrol", __name__)
 

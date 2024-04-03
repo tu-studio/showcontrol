@@ -12,7 +12,7 @@ import json
 import time
 from pathlib import Path
 
-from common import read_tracks
+from showcontrol.common import read_tracks
 
 server = OSCThreadServer()
 

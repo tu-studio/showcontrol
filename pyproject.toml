@@ -1,0 +1,35 @@
+[project]
+name = "showcontrol"
+dynamic = ["version"]
+
+description = "controller for the playback of the seamless system"
+authors = [
+    { name = "Max Weidauer", email = "weidauer@campus.tu-berlin.de" },
+    { name = "Fares Schulz", email = "fares.schulz@tu-berlin.de" },
+    { name = "Paul Schuladen", email = "example@example.org" },
+]
+maintainers = [
+    { name = "Max Weidauer", email = "weidauer@campus.tu-berlin.de" },
+]
+dependencies = ["oscpy", "apscheduler", "pyyaml", "flask", "xdg"]
+
+[build-system]
+requires = ["setuptools >= 61.0.0", "versioneer[toml]==0.29"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+showcontrol = "showcontrol:run"
+
+[tool.setuptools.package-data]
+"*" = ["*.sql"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "src/showcontrol/_version.py"
+versionfile_build = "showcontrol/_version.py"
+tag_prefix = ""
+parentdir_prefix = "showcontrol-"
