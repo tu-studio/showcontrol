@@ -36,6 +36,8 @@ class SchedControl(object):
     def __init__(self):
         global server
 
+        # read config files
+        # TODO make configurable
         for possible_config_path in default_config_file_locations:
             print(possible_config_path)
             if possible_config_path.exists():
@@ -58,6 +60,7 @@ class SchedControl(object):
         with open(self.config_file) as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
 
+        # read track configs
         self.generate_track_list()
 
         self.video_broadcast_ip = self.config["videobroadcast_ip"]
@@ -66,14 +69,17 @@ class SchedControl(object):
 
         self.playing = False
 
+        # setup OSC client and server
         self.reaper = OSCClient(self.config["reaper_ip"], self.config["reaper_port"])
 
         server.listen(
             self.config["server_ip"], self.config["server_port"], default=True
         )
 
+        # setup scheduler
+
         self.sched = BlockingScheduler()
-        self.jobs = self.load_show_control()
+        self.jobs = self.read_schedule()
         self.add_jobs_to_scheduler()
 
         self.sched_thr = Thread(target=self.sched.start)
@@ -198,7 +204,7 @@ class SchedControl(object):
         except:
             print(f"Sending play video index command to {video_index} failed.")
 
-    def load_show_control(self):
+    def read_schedule(self):
         with open(self.schedule_file) as f:
             data = yaml.load(f, Loader=yaml.FullLoader)
             return data
@@ -225,7 +231,7 @@ class SchedControl(object):
                     day_of_week=job["day_of_week"],
                     args=[job["video_index"]],
                 )
-        self.sched.print_jobs()
+        # self.sched.print_jobs()
 
     def generate_track_list(self):
         """Reads the tracks directory and stores the tracks into the self.tracks dict

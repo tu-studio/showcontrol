@@ -11,14 +11,15 @@ authors = [
 maintainers = [
     { name = "Max Weidauer", email = "weidauer@campus.tu-berlin.de" },
 ]
-dependencies = ["oscpy", "apscheduler", "pyyaml", "flask", "xdg"]
+dependencies = ["oscpy", "apscheduler", "pyyaml", "flask", "xdg", "click"]
 
 [build-system]
 requires = ["setuptools >= 61.0.0", "versioneer[toml]==0.29"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-showcontrol = "showcontrol:run"
+showcontrol = "showcontrol.app:run"
+showcontrol_schedule_generator = "showcontrol.schedule_generator:main"
 
 [tool.setuptools.package-data]
 "*" = ["*.sql"]

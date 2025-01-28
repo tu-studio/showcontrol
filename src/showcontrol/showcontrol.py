@@ -1,19 +1,18 @@
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
-from werkzeug.exceptions import abort
+from flask import Blueprint, render_template, request
 from threading import Thread
 
 import apscheduler
-from showcontrol import schedctrl
+from showcontrol.schedcontrol import SchedControl
 from showcontrol.auth import login_required
 from showcontrol.db import get_db
 
 bp = Blueprint("showcontrol", __name__)
+schedctrl = SchedControl()
 
 
 @bp.route("/", methods=("GET", "POST"))
 @login_required
 def showcontrol():
-    global schedctrl
     if request.method == "POST":
         if "pause" in request.form:
             t = Thread(target=schedctrl.pause, args=(1,))
@@ -35,7 +34,6 @@ def showcontrol():
 @bp.route("/tracks", methods=("GET", "POST"))
 @login_required
 def web_tracks():
-    global schedctrl
     if request.method == "POST":
         track = request.form.get("track")
 
