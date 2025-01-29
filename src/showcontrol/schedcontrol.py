@@ -1,34 +1,19 @@
-from math import pi
+from pathlib import Path
 import sys
 from oscpy.client import OSCClient
 from oscpy.server import OSCThreadServer, ServerClass
 from apscheduler.schedulers.blocking import BlockingScheduler
-from datetime import datetime
 from threading import Thread
 import yaml
 import os
 import socket
 import json
 import time
-from pathlib import Path
+import logging
+from showcontrol.config import ConfigError, read_config, read_config_option, read_tracks
 
-from showcontrol.common import read_tracks
-
+log = logging.getLogger()
 server = OSCThreadServer()
-
-
-default_config_file_path = Path("showcontrol")
-default_config_file_locations = [
-    Path("/home/leto/data/projects/arbeit/akt/showcontrol/config"),  # TODO delet
-    Path(os.getcwd()) / "config",
-    Path.home() / ".config" / default_config_file_path,
-    Path("/etc") / default_config_file_path,
-    Path("/usr/local/etc") / default_config_file_path,
-]
-
-schedule_filename = Path("schedule.yml")
-config_file_filename = Path("showcontrol_config.yml")
-tracks_dirname = Path("tracks")
 
 
 @ServerClass
@@ -38,48 +23,43 @@ class SchedControl(object):
 
         # read config files
         # TODO make configurable
-        for possible_config_path in default_config_file_locations:
-            print(possible_config_path)
-            if possible_config_path.exists():
-                print(f"loading configs from {possible_config_path}")
+        try:
+            config_paths = read_config()
+        except ConfigError as e:
+            log.error(f"Error while loading config: {e}")
+            sys.exit(-1)
 
-                self.schedule_file = possible_config_path / schedule_filename
-                self.config_file = possible_config_path / config_file_filename
-                self.tracks_dir = possible_config_path / tracks_dirname
-
-                if not (self.schedule_file.exists() and self.schedule_file.is_file()):
-                    raise FileNotFoundError("No Schedule File found")
-                if not (self.config_file.exists() and self.config_file.is_file()):
-                    raise FileNotFoundError("No Config File found")
-                if not (self.tracks_dir.exists() and self.tracks_dir.is_dir()):
-                    raise FileNotFoundError("No tracks dir found")
-                break
-        else:
-            print("could not find config directory, exiting...")
-            sys.exit(1)
-        with open(self.config_file) as f:
+        with open(config_paths.config_file_path) as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
 
         # read track configs
-        self.generate_track_list()
+        self.generate_track_list(config_paths.tracks_dir)
 
-        self.video_broadcast_ip = self.config["videobroadcast_ip"]
-        self.video_broadcast_port = self.config["videobroadcast_port"]
-        self.info_broadcast_port = self.config["infobroadcast_port"]
+        self.video_broadcast_ip = read_config_option(self.config, "broadcast_ip", str)
+        self.video_broadcast_port = read_config_option(self.config, "video_port", int)
+        self.info_broadcast_port = read_config_option(self.config, "info_port", int)
 
         self.playing = False
 
         # setup OSC client and server
-        self.reaper = OSCClient(self.config["reaper_ip"], self.config["reaper_port"])
+        # TODO better defaults
+        # TODO change to hostnames
+
+        self.reaper = OSCClient(
+            read_config_option(self.config, "reaper_ip", str),
+            read_config_option(self.config, "reaper_port", int, 8000),
+        )
 
         server.listen(
-            self.config["server_ip"], self.config["server_port"], default=True
+            read_config_option(self.config, "listen_ip", str, "127.0.0.1"),
+            read_config_option(self.config, "listen_port", int, 9001),
+            default=True,
         )
 
         # setup scheduler
 
         self.sched = BlockingScheduler()
-        self.jobs = self.read_schedule()
+        self.jobs = self.read_schedule(config_paths.schedule_file_path)
         self.add_jobs_to_scheduler()
 
         self.sched_thr = Thread(target=self.sched.start)
@@ -160,7 +140,7 @@ class SchedControl(object):
             self.sched.resume()
 
     @server.address_method(b"/showcontrol/reboot")
-    def reboot(*values):
+    def reboot(self, *values):
         if 1.0 in values:
             for machine in self.config["system"]:
                 print("Reboot {}".format(machine["name"]))
@@ -204,8 +184,8 @@ class SchedControl(object):
         except:
             print(f"Sending play video index command to {video_index} failed.")
 
-    def read_schedule(self):
-        with open(self.schedule_file) as f:
+    def read_schedule(self, schedule_path: Path):
+        with open(schedule_path) as f:
             data = yaml.load(f, Loader=yaml.FullLoader)
             return data
 
@@ -233,13 +213,13 @@ class SchedControl(object):
                 )
         # self.sched.print_jobs()
 
-    def generate_track_list(self):
+    def generate_track_list(self, track_dir: Path):
         """Reads the tracks directory and stores the tracks into the self.tracks dict
 
         Raises:
             KeyError: Raised when a track id is not unique
         """
-        self.tracks = read_tracks(self.tracks_dir, identifier_is_name=True)
+        self.tracks = read_tracks(track_dir, identifier_is_name=True)
 
     def get_scheduled_tracks(self, n_tracks=20):
         """Returns the next n_tracks scheduled tracks.

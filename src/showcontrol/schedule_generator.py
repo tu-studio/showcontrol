@@ -6,7 +6,7 @@ import logging
 
 import click
 
-from .common import read_blocks, read_tracks
+from .config import read_blocks, read_tracks
 
 log = logging.getLogger()
 
