@@ -46,15 +46,19 @@ class SchedControl(object):
         # TODO change to hostnames
 
         self.reaper = OSCClient(
-            read_config_option(self.config, "reaper_ip", str),
+            read_config_option(self.config, "reaper_hostname", str, "127.0.0.1"),
             read_config_option(self.config, "reaper_port", int, 8000),
         )
+
+        print(f"communicating with reaper at {self.reaper.address}:{self.reaper.port}")
 
         server.listen(
             read_config_option(self.config, "listen_ip", str, "127.0.0.1"),
             read_config_option(self.config, "listen_port", int, 9001),
             default=True,
         )
+
+        print(f"listening for communication  on {server.getaddress()}")
 
         # setup scheduler
 

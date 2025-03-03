@@ -28,6 +28,7 @@ deprecated_config_strings = {
     "info_port": ["videobroadcast_port"],
     "listen_ip": ["server_ip"],
     "listen_port": ["server_port"],
+    "reaper_hostname": ["reaper_ip"],
 }
 
 
