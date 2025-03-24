@@ -2,6 +2,7 @@ import os
 
 from flask import Flask
 from xdg import xdg_state_home
+import click
 
 
 def create_app(test_config=None):
@@ -48,10 +49,14 @@ def create_app(test_config=None):
     return app
 
 
-app = create_app()
-
-
 def run():
+    from .showcontrol import schedctrl
+
+    schedctrl.start_listening()
+    app = create_app()
+
     """can be used to run this app, recommended way is `flask --app showcontrol run`"""
-    global app
+    # global app
+
     app.run(host="0.0.0.0", port=8080)
+    schedctrl.stop_listening()

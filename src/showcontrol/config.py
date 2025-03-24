@@ -154,3 +154,10 @@ def read_blocks(block_dir) -> dict:
 
             blocks[identifier] = block
     return blocks
+
+
+def read_schedule(schedule_path: Path) -> dict:
+    # TODO validate
+    with open(schedule_path) as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    return data

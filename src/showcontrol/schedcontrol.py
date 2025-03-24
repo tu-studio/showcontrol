@@ -1,8 +1,10 @@
 from pathlib import Path
 import sys
-from oscpy.client import OSCClient
-from oscpy.server import OSCThreadServer, ServerClass
-from apscheduler.schedulers.blocking import BlockingScheduler
+from typing import Any
+from pythonosc.dispatcher import Dispatcher
+from pythonosc.osc_server import BlockingOSCUDPServer
+from pythonosc.udp_client import SimpleUDPClient
+from apscheduler.schedulers.background import BackgroundScheduler
 from threading import Thread
 import yaml
 import os
@@ -10,16 +12,19 @@ import socket
 import json
 import time
 import logging
-from showcontrol.config import ConfigError, read_config, read_config_option, read_tracks
+from showcontrol.config import (
+    ConfigError,
+    read_config,
+    read_config_option,
+    read_schedule,
+    read_tracks,
+)
 
 log = logging.getLogger()
-server = OSCThreadServer()
 
 
-@ServerClass
 class SchedControl(object):
     def __init__(self):
-        global server
 
         # read config files
         # TODO make configurable
@@ -39,42 +44,64 @@ class SchedControl(object):
         self.video_broadcast_port = read_config_option(self.config, "video_port", int)
         self.info_broadcast_port = read_config_option(self.config, "info_port", int)
 
+        self.listen_ip = read_config_option(self.config, "listen_ip", str, "127.0.0.1")
+        self.listen_port = read_config_option(self.config, "listen_port", int, 9001)
+
+        self.reaper_hostname = read_config_option(
+            self.config, "reaper_hostname", str, "127.0.0.1"
+        )
+        self.reaper_port = read_config_option(self.config, "reaper_port", int, 8000)
+
         self.playing = False
+        self.listening = False
 
-        # setup OSC client and server
-        # TODO better defaults
-        # TODO change to hostnames
+        # setup reaper connection
+        self.reaper = SimpleUDPClient(self.reaper_hostname, self.reaper_port)
+        print(f"communicating with reaper at {self.reaper_hostname}:{self.reaper_port}")
 
-        self.reaper = OSCClient(
-            read_config_option(self.config, "reaper_hostname", str, "127.0.0.1"),
-            read_config_option(self.config, "reaper_port", int, 8000),
+        # setup osc server
+        self.dispatcher = Dispatcher()
+        self.setup_osc_callbacks()
+        self.server = BlockingOSCUDPServer(
+            (self.listen_ip, self.listen_port),
+            dispatcher=self.dispatcher,
         )
-
-        print(f"communicating with reaper at {self.reaper.address}:{self.reaper.port}")
-
-        server.listen(
-            read_config_option(self.config, "listen_ip", str, "127.0.0.1"),
-            read_config_option(self.config, "listen_port", int, 9001),
-            default=True,
-        )
-
-        print(f"listening for communication  on {server.getaddress()}")
 
         # setup scheduler
+        self.sched = BackgroundScheduler()
+        self.add_jobs_to_scheduler(config_paths.schedule_file_path)
 
-        self.sched = BlockingScheduler()
-        self.jobs = self.read_schedule(config_paths.schedule_file_path)
-        self.add_jobs_to_scheduler()
+    def start_listening(self):
+        self.listening = True
 
-        self.sched_thr = Thread(target=self.sched.start)
-        self.sched_thr.start()
-        print("sched_control init finished")
+        # start scheduler
+        self.sched.start()
 
-    def play(self, track_nr):
-        self.reaper.send_message(b"/region", [track_nr])
+        # start osc server
+        self.server_thread = Thread(target=self.server.serve_forever)
+        self.server_thread.start()
+        print(f"listening for communication on {self.listen_ip}:{self.listen_port}")
+
+    def stop_listening(self):
+        if self.listening:
+            self.server.shutdown()
+            self.sched.shutdown(wait=False)
+        self.listening = False
+
+    def setup_osc_callbacks(self):
+        self.dispatcher.map("/showcontrol/pause", self.pause)
+        self.dispatcher.map("/showcontrol/track", self.play_track)
+
+    def play_reaper(self, track_nr):
+        """sends OSC-Messages to reaper to start playing the track with the corresponding track_nr
+
+        Args:
+            track_nr (int): index of the track to start playing
+        """
+        self.reaper.send_message("/region", [track_nr])
         # if playing == False:
-        self.reaper.send_message(b"/stop", [1.0])
-        self.reaper.send_message(b"/play", [1.0])
+        self.reaper.send_message("/stop", [1.0])
+        self.reaper.send_message("/play", [1.0])
         print(f"started track {track_nr} in reaper")
 
     def send_udp_broadcast(self, command_dict: dict, port=None):
@@ -99,7 +126,7 @@ class SchedControl(object):
         sock.close()
 
     # @server.address_method(b"/play")
-    # def play_state(self, *values):
+    # def play_state(self, path, *values):
     #     return  # return early because we don't know how it works
     #     # TODO von wo wird das aufgerufen? die sleeps sind, damit die commands in der richtigen reihenfolge ankommen
     #     print(values[0])
@@ -119,14 +146,21 @@ class SchedControl(object):
     #         except:
     #             print("sending pause command failed")
 
-    @server.address_method(b"/showcontrol/pause")
-    def pause(self, *values):
+    # method for /showcontrol/pause
+    def pause(self, path, *values):
+        """Pauses scheduler and playback
+        OSC Callback for /showcontrol/pause
+        values should contain a 1.0 to stop playback or a 0.0 to continue
+
+        Args:
+            path (Any): OSC Path for this handler, is ignored
+        """
         if 1.0 in values:
             print("Pause message!")
-            self.reaper.send_message(b"/track/1/mute", [1])
+            self.reaper.send_message("/track/1/mute", [1])
             # if playing == True:
             time.sleep(0.5)
-            self.reaper.send_message(b"/stop", [1.0])
+            self.reaper.send_message("/stop", [1.0])
             print("Paused!")
 
             # Video nr 0 starts with a black screen
@@ -140,36 +174,52 @@ class SchedControl(object):
 
         elif 0.0 in values:
             print("Resumed!")
-            self.reaper.send_message(b"/track/1/mute", [0])
+            self.reaper.send_message("/track/1/mute", [0])
             self.sched.resume()
 
-    @server.address_method(b"/showcontrol/reboot")
-    def reboot(self, *values):
-        if 1.0 in values:
-            for machine in self.config["system"]:
-                print("Reboot {}".format(machine["name"]))
-                os.popen(
-                    "systemctl -H {}@{} reboot".format(machine["user"], machine["ip"])
-                )
+    # method for "/showcontrol/reboot"
+    # def reboot(self, path, *values):
+    #     if 1.0 in values:
+    #         for machine in self.config["system"]:
+    #             print("Reboot {}".format(machine["name"]))
+    #             os.popen(
+    #                 "systemctl -H {}@{} reboot".format(machine["user"], machine["ip"])
+    #             )
 
-    @server.address_method(b"/showcontrol/track")
-    def play_track(self, *values):
-        self.sched.pause()
-        self.reaper.send_message(b"/track/1/mute", [0])
+    def play_track(
+        self,
+        path,
+        track_id: str,
+        pause_scheduler: int | bool = True,
+        *values: list[Any],
+    ):
+        """Starts playing the track with the index track_id
+        method for "/showcontrol/track"
 
-        if isinstance(values[0], int):
+        Args:
+            path (Any): OSC path this listens on. is ignored
+            track_id (str): id of the track to start playing. usually the name of the track
+        """
+        pause_scheduler = bool(pause_scheduler)
+
+        if pause_scheduler:
+            print("pausing scheduler")
+            self.sched.pause()
+            self.reaper.send_message("/track/1/mute", [0])
+
+        if not isinstance(track_id, str):
             # TODO maybe play the track at that index instead? would be unpredictable tho...
-            print("Play_track argument was of type int, should be string")
+            print("Error: Play_track argument wasn't of type string")
             return
-        track_id = values[0]
         track = self.tracks[track_id]
 
         print(
             f"Play track: {track_id} (audio_index {track['audio_index']}, video_index {track['video_index']}"
         )
 
-        self.play(track["audio_index"])
-        self.play_video(track["video_index"])
+        self.play_reaper(track["audio_index"])
+        if "video_index" in track:
+            self.play_video(track["video_index"])
 
     def play_video(self, video_index):
         try:
@@ -188,34 +238,25 @@ class SchedControl(object):
         except:
             print(f"Sending play video index command to {video_index} failed.")
 
-    def read_schedule(self, schedule_path: Path):
-        with open(schedule_path) as f:
-            data = yaml.load(f, Loader=yaml.FullLoader)
-            return data
+    def add_jobs_to_scheduler(self, config_path: Path):
+        for job in read_schedule(config_path):
+            if job["command"] != "play":
+                print(f"Error while parsing schedule: invalid command {job['command']}")
+                continue
 
-    def add_jobs_to_scheduler(self):
-        for job in self.jobs:
-            if job["command"] == "play":
-                self.sched.add_job(
-                    self.play,
-                    "cron",
-                    hour=job["hour"],
-                    minute=job["minute"],
-                    second=job["second"],
-                    day_of_week=job["day_of_week"],
-                    args=[job["audio_index"]],
-                )
-            if "video_index" in job:
-                self.sched.add_job(
-                    self.play_video,
-                    "cron",
-                    hour=job["hour"],
-                    minute=job["minute"],
-                    second=job["second"],
-                    day_of_week=job["day_of_week"],
-                    args=[job["video_index"]],
-                )
-        # self.sched.print_jobs()
+            self.sched.add_job(
+                self.play_track,
+                "cron",
+                hour=job["hour"],
+                minute=job["minute"],
+                second=job["second"],
+                day_of_week=job["day_of_week"],
+                args=[
+                    None,
+                    job["track_id"],
+                    False,
+                ],  # first arg is the osc path, which can be None, second is track_id, third is whether scheduler should be paused
+            )
 
     def generate_track_list(self, track_dir: Path):
         """Reads the tracks directory and stores the tracks into the self.tracks dict
@@ -235,25 +276,22 @@ class SchedControl(object):
             List[Tuple[str]]: Scheduled tracks as list with tuples in the format (time, title)
         """
         # get all jobs
-        a = self.sched.get_jobs()
+        jobs = self.sched.get_jobs()
+        if len(jobs) < n_tracks:
+            n_tracks = len(jobs)
 
-        if len(a) < n_tracks:
-            n_tracks = len(a)
-
-        # filter out only play commands
-        next_track_jobs = (
-            t for t in a[: n_tracks * 2] if t.name == "SchedControl.play"
-        )
+        next_track_jobs = jobs[:n_tracks]
 
         # build a readable data structure out of that
         next_tracks = []
-        for t in next_track_jobs:
-            for track_name, value in self.tracks.items():
-                if value["audio_index"] == t.args[0]:
-                    next_tracks.append(
-                        (t.next_run_time.strftime("%H:%M"), value["title"])
-                    )
-                    break
+        for job in next_track_jobs:
+            try:
+                track = self.tracks[job.args[1]]
+                next_tracks.append(
+                    (job.next_run_time.strftime("%H:%M"), track["title"])
+                )
+            except KeyError:
+                pass
 
         return next_tracks
 

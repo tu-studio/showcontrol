@@ -8,7 +8,7 @@ python -m venv venv
 source venv/bin/activate
 
 pip install -e .
-flask --app showcontrol init-db
+flask --app showcontrol.app init-db
 ```
 
 ## setup REAPER remote control
@@ -24,3 +24,9 @@ flask --app showcontrol init-db
 - Mode: `Local port [receive only]`
   - local listen port: `8000`
   - local ip: ip of the pc, `0.0.0.0` should work
+
+## repo setup
+
+### `schedcontrol.py`
+
+contains the actual scheduler, the rest is for the frontend

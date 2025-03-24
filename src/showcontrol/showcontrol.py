@@ -4,7 +4,8 @@ from threading import Thread
 import apscheduler
 from showcontrol.schedcontrol import SchedControl
 from showcontrol.auth import login_required
-from showcontrol.db import get_db
+
+# from showcontrol.db import get_db
 
 bp = Blueprint("showcontrol", __name__)
 schedctrl = SchedControl()
@@ -15,10 +16,10 @@ schedctrl = SchedControl()
 def showcontrol():
     if request.method == "POST":
         if "pause" in request.form:
-            t = Thread(target=schedctrl.pause, args=(1,))
+            t = Thread(target=schedctrl.pause, args=(None, 1))
             t.start()
         if "resume" in request.form:
-            t = Thread(target=schedctrl.pause, args=(0,))
+            t = Thread(target=schedctrl.pause, args=(None, 0))
             t.start()
     print(
         "Scheduler is running: ",
@@ -40,7 +41,7 @@ def web_tracks():
         if track not in schedctrl.tracks:
             return "Track not found", 400
 
-        schedctrl.play_track(track)
+        schedctrl.play_track(path=None, track_id=track)
 
     # Sort track keys by audio index
     sorted_track_keys = sorted(

@@ -11,7 +11,7 @@ authors = [
 maintainers = [
     { name = "Max Weidauer", email = "weidauer@campus.tu-berlin.de" },
 ]
-dependencies = ["oscpy", "apscheduler", "pyyaml", "flask", "xdg", "click"]
+dependencies = ["python-osc", "apscheduler", "pyyaml", "flask", "xdg", "click"]
 
 [build-system]
 requires = ["setuptools >= 61.0.0", "versioneer[toml]==0.29"]
