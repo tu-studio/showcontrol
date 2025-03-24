@@ -66,9 +66,9 @@ def create_alternative_schedule(input_file, output_file, tracks_folder):
 
 
 def create_readable_txt(input_file, output_file, tracks_folder):
-    track_dict = read_tracks(tracks_folder)
+    track_dict = read_tracks(tracks_folder, identifier_is_name=False)
     with open(input_file, "r") as f:
-        schDict = yaml.safe_load(f)
+        schedule = yaml.safe_load(f)
 
     # make sure output file is not a directory, append .txt to the output filename if it has no file ending
     if os.path.isdir(output_file):
@@ -79,41 +79,50 @@ def create_readable_txt(input_file, output_file, tracks_folder):
             output_file = output_file + ".txt"
 
     with open(output_file, "w") as outfile:
-        for b in schDict:
+        for scheduled_item in schedule:
             # convert day numbers to names
             # if there is only one day, it is already an integer
-            day_nrs = b["day_of_week"]
+            day_nrs = scheduled_item["day_of_week"]
             if isinstance(day_nrs, str):
                 day_nrs = day_nrs.split(",")
                 days = ",".join([day_names[int(d)] for d in day_nrs])
             else:
                 days = day_names[day_nrs]
 
-            timestr = f"{b['hour']:02}:{b['minute']:02}:{b['second']:02}"
+            timestr = f"{scheduled_item['hour']:02}:{scheduled_item['minute']:02}:{scheduled_item['second']:02}"
 
-            idx = b["audio_index"]
+            idx = scheduled_item["audio_index"]
             if idx in track_dict:
                 track_title = track_dict[idx]["title"]
                 outfile.write(f"{days:<20}\t{timestr}\t{track_title}\n")
             else:
+                print(f"index {idx} missing from track_dict")
                 outfile.write(timestr + "\n")
     outfile.close()
-    print("Program Schedule points", len(schDict))
+    print("Program Schedule points", len(schedule))
     print("written programfile to", output_file)
 
 
 def writeEntry(
-    file, hour, minute, secs, audio_idx, video_idx, days=[0, 1, 2, 3, 4, 5, 6]
+    file,
+    hour,
+    minute,
+    secs,
+    audio_idx,
+    video_idx,
+    track_name: str,
+    days=[0, 1, 2, 3, 4, 5, 6],
 ):
     days = [str(d) for d in days]
     file.write(
-        f"- audio_index: {audio_idx}\n"
+        f"- track_id: {track_name}\n"
+        f"  audio_index: {audio_idx} # included for compatibility \n"
+        f"  video_index: {video_idx}  # included for compatibility \n"
         f"  command: play\n"
         f"  day_of_week: {','.join(days)}\n"
         f"  hour: {hour}\n"
         f"  minute: {minute}\n"
         f"  second: {secs}\n"
-        f"  video_index: {video_idx}\n"
     )
 
 
@@ -186,6 +195,7 @@ def create_schedule(path_config, output_file):
                         trackstart.second,
                         audio_idx,
                         video_idx,
+                        track_name,
                         days,
                     )
 
