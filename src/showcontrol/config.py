@@ -21,13 +21,14 @@ default_config_file_locations = [
 schedule_filename = "schedule.yml"
 config_file_filename = "showcontrol_config.yml"
 tracks_dirname = "tracks"
+blocks_dirname = "blocks"
 
 deprecated_config_strings = {
     "broadcast_ip": ["videobroadcast_ip"],
     "video_port": ["videobroadcast_port"],
     "info_port": ["videobroadcast_port"],
     "listen_ip": ["server_ip"],
-    "listen_port": ["server_port"],
+    "osc_port": ["server_port"],
     "reaper_hostname": ["reaper_ip"],
 }
 
@@ -41,9 +42,13 @@ class ConfigPaths:
     config_file_path: Path
     schedule_file_path: Path
     tracks_dir: Path
+    blocks_dir: Path
 
 
-def read_config(config_path: Path | None = None) -> ConfigPaths:
+config_paths: ConfigPaths | None = None
+
+
+def find_config_files(config_path: Path | None = None) -> ConfigPaths:
     if config_path is not None and not config_path.exists():
         raise ConfigError(f"config path {config_path} does not exist, exiting")
 
@@ -55,22 +60,38 @@ def read_config(config_path: Path | None = None) -> ConfigPaths:
     if config_path is None:
         # TODO load default?
         raise ConfigError(f"No valid config dir found")
-    log.info(f"loading config files from {config_path}")
+    print(f"loading config files from {config_path}")
 
     paths = ConfigPaths(
         config_path / config_file_filename,
         config_path / schedule_filename,
         config_path / tracks_dirname,
+        config_path / blocks_dirname,
     )
 
-    if not (paths.schedule_file_path.exists() and paths.schedule_file_path.is_file()):
-        raise ConfigError("No Schedule File found")
     if not (paths.config_file_path.exists() and paths.config_file_path.is_file()):
         raise ConfigError("No Config File found")
     if not (paths.tracks_dir.exists() and paths.tracks_dir.is_dir()):
         raise ConfigError("No tracks dir found")
 
+    global config_paths
+    config_paths = paths
     return paths
+
+
+def read_config_file(config_path: Path) -> dict:
+    with open(config_path) as f:
+        return yaml.load(f, Loader=yaml.FullLoader)
+
+
+def get_config(config_path: Path | None = None) -> dict:
+    if config_path is None:
+        if config_paths is None:
+            raise ConfigError(
+                "no config paths found, call find_config_files() before trying to read a config file"
+            )
+        config_path = config_paths.config_file_path
+    return read_config_file(config_path)
 
 
 T = TypeVar("T")
@@ -107,11 +128,11 @@ def read_config_option(
     return config[option_name]
 
 
-def read_tracks(track_dir: str | Path, identifier_is_name=True) -> dict:
+def read_tracks(track_dir: str | Path | None = None, identifier_is_name=True) -> dict:
     """Reads all yaml track files in the specified directory
 
     Args:
-        track_dir (str | Path): Directory that contains the track yamls
+        track_dir (str | Path, optional): Directory that contains the track yamls. If not specified explicitely the
         identifier_is_name (bool, optional): Specifies if the returned dict uses the names of the tracks as the outermost key. If set to False the audio_index is used instead. Defaults to True.
 
     Raises:
@@ -120,44 +141,62 @@ def read_tracks(track_dir: str | Path, identifier_is_name=True) -> dict:
     Returns:
         dict: Contains all tracks
     """
+    if track_dir is None:
+        if config_paths is None:
+            raise ConfigError(
+                "no config paths found, call find_config_files() before trying to read a config file"
+            )
+        track_dir = config_paths.tracks_dir
 
     track_dir = Path(track_dir)
     tracks = {}
     for track_file in track_dir.glob("*.yml"):
-        with open(track_file) as f:
-            track = yaml.load(f, Loader=yaml.FullLoader)
+        track = read_config_file(track_file)
 
-            if identifier_is_name:
-                identifier = track["name"]
-            else:
-                identifier = track["audio_index"]
+        if identifier_is_name:
+            identifier = track["name"]
+        else:
+            identifier = track["audio_index"]
 
-            if identifier in tracks:
-                raise Exception(f"track identifier {identifier} is not unique!")
+        if identifier in tracks:
+            raise Exception(f"track identifier {identifier} is not unique!")
 
-            tracks[identifier] = track
+        tracks[identifier] = track
 
     return tracks
 
 
-def read_blocks(block_dir) -> dict:
+def read_blocks(block_dir: Path | str | None) -> dict:
+    if block_dir is None:
+        if config_paths is None:
+            raise ConfigError(
+                "no config paths found, call find_config_files() before trying to read a config file"
+            )
+        block_dir = config_paths.blocks_dir
+
     block_dir = Path(block_dir)
 
     blocks = {}
     for block_file in block_dir.glob("*.yml"):
-        with open(block_file) as f:
-            block = yaml.load(f, Loader=yaml.FullLoader)
+        block = read_config_file(block_file)
 
-            identifier = block["name"]
-            if identifier in blocks:
-                raise Exception(f"Block identifier {identifier} is not unique")
+        identifier = block["name"]
+        if identifier in blocks:
+            raise Exception(f"Block identifier {identifier} is not unique")
 
-            blocks[identifier] = block
+        blocks[identifier] = block
     return blocks
 
 
-def read_schedule(schedule_path: Path) -> dict:
+def read_schedule(schedule_path: Path | None = None) -> dict:
     # TODO validate
-    with open(schedule_path) as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-    return data
+    if schedule_path is None:
+        if config_paths is None:
+            raise ConfigError(
+                "no config paths found, call find_config_files() before trying to read a config file"
+            )
+        schedule_path = config_paths.schedule_file_path
+
+    if not (schedule_path.exists() and schedule_path.is_file()):
+        raise ConfigError("No Schedule File found")
+    return read_config_file(schedule_path)

@@ -14,7 +14,8 @@ import time
 import logging
 from showcontrol.config import (
     ConfigError,
-    read_config,
+    find_config_files,
+    get_config,
     read_config_option,
     read_schedule,
     read_tracks,
@@ -26,26 +27,16 @@ log = logging.getLogger()
 class SchedControl(object):
     def __init__(self):
 
-        # read config files
-        # TODO make configurable
-        try:
-            config_paths = read_config()
-        except ConfigError as e:
-            log.error(f"Error while loading config: {e}")
-            sys.exit(-1)
-
-        with open(config_paths.config_file_path) as f:
-            self.config = yaml.load(f, Loader=yaml.FullLoader)
-
+        self.config = get_config()
         # read track configs
-        self.generate_track_list(config_paths.tracks_dir)
+        self.generate_track_list()
 
         self.video_broadcast_ip = read_config_option(self.config, "broadcast_ip", str)
         self.video_broadcast_port = read_config_option(self.config, "video_port", int)
         self.info_broadcast_port = read_config_option(self.config, "info_port", int)
 
         self.listen_ip = read_config_option(self.config, "listen_ip", str, "127.0.0.1")
-        self.listen_port = read_config_option(self.config, "listen_port", int, 9001)
+        self.osc_port = read_config_option(self.config, "osc_port", int, 9001)
 
         self.reaper_hostname = read_config_option(
             self.config, "reaper_hostname", str, "127.0.0.1"
@@ -63,13 +54,13 @@ class SchedControl(object):
         self.dispatcher = Dispatcher()
         self.setup_osc_callbacks()
         self.server = BlockingOSCUDPServer(
-            (self.listen_ip, self.listen_port),
+            (self.listen_ip, self.osc_port),
             dispatcher=self.dispatcher,
         )
 
         # setup scheduler
         self.sched = BackgroundScheduler()
-        self.add_jobs_to_scheduler(config_paths.schedule_file_path)
+        self.add_jobs_to_scheduler()
 
     def start_listening(self):
         self.listening = True
@@ -80,13 +71,16 @@ class SchedControl(object):
         # start osc server
         self.server_thread = Thread(target=self.server.serve_forever)
         self.server_thread.start()
-        print(f"listening for communication on {self.listen_ip}:{self.listen_port}")
+        print(f"listening for communication on {self.listen_ip}:{self.osc_port}")
 
     def stop_listening(self):
         if self.listening:
             self.server.shutdown()
             self.sched.shutdown(wait=False)
         self.listening = False
+
+    def __del__(self):
+        self.stop_listening()
 
     def setup_osc_callbacks(self):
         self.dispatcher.map("/showcontrol/pause", self.pause)
@@ -238,8 +232,8 @@ class SchedControl(object):
         except:
             print(f"Sending play video index command to {video_index} failed.")
 
-    def add_jobs_to_scheduler(self, config_path: Path):
-        for job in read_schedule(config_path):
+    def add_jobs_to_scheduler(self):
+        for job in read_schedule():
             if job["command"] != "play":
                 print(f"Error while parsing schedule: invalid command {job['command']}")
                 continue
@@ -258,15 +252,15 @@ class SchedControl(object):
                 ],  # first arg is the osc path, which can be None, second is track_id, third is whether scheduler should be paused
             )
 
-    def generate_track_list(self, track_dir: Path):
+    def generate_track_list(self):
         """Reads the tracks directory and stores the tracks into the self.tracks dict
 
         Raises:
             KeyError: Raised when a track id is not unique
         """
-        self.tracks = read_tracks(track_dir, identifier_is_name=True)
+        self.tracks = read_tracks(identifier_is_name=True)
 
-    def get_scheduled_tracks(self, n_tracks=20):
+    def get_upcoming_tracks(self, n_tracks=20):
         """Returns the next n_tracks scheduled tracks.
 
         Args:
@@ -301,5 +295,5 @@ if __name__ == "__main__":
     from time import sleep
 
     sleep(1)
-    tracks = sched.get_scheduled_tracks(150)
+    tracks = sched.get_upcoming_tracks(150)
     print(tracks)

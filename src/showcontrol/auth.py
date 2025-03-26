@@ -179,7 +179,7 @@ def logout():
 
 
 @bp.route("/<int:id>/delete", methods=("POST",))
-@login_required
+@admin_required
 def delete(id):
     # get_user(id)
     db = get_db()
