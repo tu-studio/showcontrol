@@ -6,6 +6,7 @@ from xdg import xdg_state_home
 from showcontrol.config import find_config_files, get_config, read_config_option
 from showcontrol.schedcontrol import SchedControl
 from .showcontrol import construct_showcontrol_bluperint
+from .api import construct_api_blueprint
 from pathlib import Path
 import atexit
 import click
@@ -47,17 +48,18 @@ def create_app(config_dir: Path | None = None, test_config=None) -> Flask:
     # config = get_config()
     schedctrl = SchedControl()
 
-    schedctrl.start_listening()
+    schedctrl.start_scheduler()
 
     from . import auth
 
     app.register_blueprint(auth.bp)
 
     app.register_blueprint(construct_showcontrol_bluperint(schedctrl))
+    app.register_blueprint(construct_api_blueprint(schedctrl), url_prefix="/api")
     app.add_url_rule("/", endpoint="index")
     app.add_url_rule("/tracks", endpoint="tracks")
 
-    atexit.register(schedctrl.stop_listening)
+    atexit.register(schedctrl.stop_scheduler)
 
     return app
 

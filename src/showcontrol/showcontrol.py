@@ -6,8 +6,7 @@ from showcontrol.schedcontrol import SchedControl
 from showcontrol.auth import login_required
 
 
-# from showcontrol.db import get_db
-def construct_showcontrol_bluperint(schedctrl: SchedControl):
+def construct_showcontrol_bluperint(schedctrl: SchedControl) -> Blueprint:
     bp = Blueprint("showcontrol", __name__)
 
     @bp.route("/", methods=("GET", "POST"))
@@ -15,18 +14,18 @@ def construct_showcontrol_bluperint(schedctrl: SchedControl):
     def showcontrol():
         if request.method == "POST":
             if "pause" in request.form:
-                t = Thread(target=schedctrl.pause, args=(None, 1))
+                t = Thread(target=schedctrl.scheduler_pause)
                 t.start()
             if "resume" in request.form:
-                t = Thread(target=schedctrl.pause, args=(None, 0))
+                t = Thread(target=schedctrl.scheduler_resume)
                 t.start()
         print(
             "Scheduler is running: ",
-            schedctrl.sched.state != apscheduler.schedulers.base.STATE_PAUSED,
+            schedctrl.is_running(),
         )
         return render_template(
             "showcontrol/pause.html",
-            state=(schedctrl.sched.state == apscheduler.schedulers.base.STATE_PAUSED),
+            state=(not schedctrl.is_running()),
             schedule=schedctrl.get_upcoming_tracks(),
         )
 
@@ -42,7 +41,7 @@ def construct_showcontrol_bluperint(schedctrl: SchedControl):
             if track not in schedctrl.tracks:
                 return "Track not found", 404
 
-            schedctrl.play_track(path=None, track_id=track)
+            schedctrl.play_track(track_id=track)
 
         # Sort track keys by audio index
         sorted_track_keys = sorted(
