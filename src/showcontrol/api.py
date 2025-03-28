@@ -9,7 +9,9 @@ def construct_api_blueprint(schedctrl: SchedControl) -> Blueprint:
 
     @bp.route("tracks")
     def get_tracks():
-        return list(schedctrl.tracks.values())
+        return sorted(
+            schedctrl.tracks.values(), key=lambda x: x["audio_index"]
+        )
 
     @bp.route("scheduler_state", methods=["GET", "POST", "PUT"])
     def get_scheduler_state():
