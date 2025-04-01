@@ -53,7 +53,14 @@ if get_option('versioned_install')
 		'sudo ln -s -f @0@ @1@'.format(
 			get_option('prefix') / get_option('bindir') / 'showcontrol' + install_postfix,
 			get_option('prefix') / get_option('bindir') / 'showcontrol')
-)
+	)
+	# symlink version specific showcontrol python dir in share
+	meson.add_install_script(
+		'sh', '-c',
+		'sudo ln -s -f @0@ @1@'.format(
+			get_option('prefix') / get_option('datadir') / 'showcontrol' + install_postfix,
+			get_option('prefix') / get_option('datadir') / 'showcontrol')
+	)
 endif
 
 subdir('systemd')
