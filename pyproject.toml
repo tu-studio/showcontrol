@@ -14,18 +14,13 @@ maintainers = [
 dependencies = ["python-osc", "apscheduler", "pyyaml", "flask", "xdg", "click"]
 
 [build-system]
-requires = ["setuptools >= 61.0.0", "versioneer[toml]==0.29"]
-build-backend = "setuptools.build_meta"
+requires = ["flit_core<4", "versioneer[toml]==0.29"]
+build-backend = "flit_core.buildapi"
+
 
 [project.scripts]
 showcontrol = "showcontrol.app:run"
 showcontrol_schedule_generator = "showcontrol.schedule_generator:main"
-
-[tool.setuptools.package-data]
-"*" = ["*.sql"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.versioneer]
 VCS = "git"
