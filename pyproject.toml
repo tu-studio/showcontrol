@@ -1,6 +1,7 @@
 [project]
 name = "showcontrol"
 dynamic = ["version"]
+requires-python = ">3.10"
 
 description = "controller for the playback of the seamless system"
 authors = [
