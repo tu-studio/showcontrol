@@ -2,8 +2,9 @@ from pathlib import Path
 import os
 from dataclasses import dataclass
 import logging
-from typing import TypeVar
+from typing import Optional, TypeVar
 from collections.abc import Callable
+from pydantic import BaseModel
 import yaml
 
 
@@ -31,6 +32,24 @@ deprecated_config_strings = {
     "osc_port": ["server_port"],
     "reaper_hostname": ["reaper_ip"],
 }
+
+
+class TrackLength(BaseModel):
+    minutes: int
+    seconds: int
+
+
+class Track(BaseModel):
+    id: str
+    short_title: str = ""
+    title_de: str
+    title_en: str
+    artist: str = ""
+    audio_index: int
+    video_index: int = -1
+    duration: TrackLength
+    description: str
+    description_en: str = ""
 
 
 class ConfigError(Exception):
@@ -87,6 +106,8 @@ def read_config_file(config_path: Path) -> dict:
 def get_config(config_path: Path | None = None) -> dict:
     if config_path is None:
         if config_paths is None:
+            find_config_files()
+        if config_paths is None:
             raise ConfigError(
                 "no config paths found, call find_config_files() before trying to read a config file"
             )
@@ -128,7 +149,9 @@ def read_config_option(
     return config[option_name]
 
 
-def read_tracks(track_dir: str | Path | None = None, identifier_is_name=True) -> dict:
+def read_tracks(
+    track_dir: str | Path | None = None, identifier_is_name=True
+) -> dict[str | int, Track]:
     """Reads all yaml track files in the specified directory
 
     Args:
@@ -151,12 +174,11 @@ def read_tracks(track_dir: str | Path | None = None, identifier_is_name=True) ->
     track_dir = Path(track_dir)
     tracks = {}
     for track_file in track_dir.glob("*.yml"):
-        track = read_config_file(track_file)
+        track = Track(**read_config_file(track_file))
+        if track.short_title == "":
+            track.short_title = track.title_de
 
-        if identifier_is_name:
-            identifier = track["name"]
-        else:
-            identifier = track["audio_index"]
+        identifier: str | int = track.id if identifier_is_name else track.audio_index
 
         if identifier in tracks:
             raise Exception(f"track identifier {identifier} is not unique!")

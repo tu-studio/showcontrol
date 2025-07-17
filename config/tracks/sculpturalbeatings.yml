@@ -1,10 +1,16 @@
-name: sculpturalbeatings
-title: Skulpturale Schwebungen
+id: sculpturalbeatings
+short_title: Skulpturale Schwebungen
+title_de: Sculptural Beatings
 title_en: Sculptural Beatings
+artist: Konstantin Fontaine, Luca Paul Schulze, Till Vesely
 audio_index: 11
 video_index: 10
 duration:
   minutes: 15
   seconds: 12
-description: >
-  Skulpturale Schwebungen schweben Skulptural
+description: |
+  In dem Stück „Sculptural Beatings“ schaffen die drei Künstler:innen einen auditiven Raum zerfallender Klangskulpturen, die sich im Zuge der Platzierung und Bewegung digitaler Klangquellen konstruieren und verformen. Durch die räumliche Verteilung verschiedener Sinuswellen mit nahbeieinander liegenden Frequenzen und den hiermit auftretenden Schwebungseffekten füllt eine verwobene akustische Textur den Raum aus. Sie setzt sich aus verschiedenen Oberflächen und Geometrien zusammen und ändert sich mit der Hörposition. Zusätzlich hierzu werden lokalisierbarere Sounds mit greifbarerer Form durch den Raum gespannt.
+  „Sculptural Beatings“ entstand im Rahmen des Kurses „Spatial Audio: Production & Performance“ im Sommersemester 2022 im Elektronischen Studio der TU Berlin. Im Lauf eines Semesters konnten die Student:innen eine künstlerische oder technisch/wissenschaftliche Fragestellung bearbeiten.
+description_en: |
+  In the piece „Sculptural Beatings“ the three artists create an auditory space of decaying sound sculptures that construct and deform as digital sound sources are positioned and moved. Through the spatial distribution of various sine waves with frequencies close to each other and the beating effects that occur with them, an interwoven acoustic texture fills the space. It is composed of different surfaces and geometries and changes with the listening position. In addition to this, more localizable sounds with a more tangible form are stretched through the space.
+  „Sculptural Beatings“ was produced as part of the course „Spatial Audio: Production & Performance“ in the summer semester of 2022 at the Electronic Studio of the TU Berlin. In the course of one semester, the students could work on an artistic or technical/scientific topic.

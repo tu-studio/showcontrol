@@ -1,10 +1,15 @@
-name: pune
-title: Pune Metamorphosis
+id: pune
+title_de: Pune Metamorphosis
 title_en: Pune Metamorphosis
+artist: Paulo C. Chagas
 audio_index: 13
 video_index: 12
 duration:
   minutes: 20
   seconds: 18
-description: >
-  Schrebreibung
+description: |
+  Das Stück „Pune Metamorphosis“ ist auf der Grundlage von Ambisonics-Klängen und 3D-Videos komponiert, die 2019 in der indischen Stadt Pune aufgenommen wurden. Sie fangen typische Klanglandschaften dieser pulsierenden Metropole ein. Die Ambisonics-Soundscape-Komposition schafft einen kontinuierlichen Übergang zwischen Klängen, die unterschiedliche Kulturen des individuellen und sozialen Hörens vermitteln, wie z. B. menschliche Beziehungen, Tiere, technische Geräte, Architekturen und Strukturen von Raum und Zeit. Eine zweite Schicht ergibt sich durch Transformationen der ursprünglichen Ambisonics-Klänge mittels granularer Synthese, die unbewusste kognitive Klangassemblagen erforscht. Eine dritte Ebene beruht auf Bassflötenklängen, die elektronisch verarbeitet und mittels Wellenfeldsynthese verräumlicht wurden.
+  „Pune Metamorphosis“ wurde durch das Fulbright Scholarship Programm ermöglicht.
+description_en: |
+  The piece „Pune Metamorphosis” is composed based on Ambisonics sounds and 3D videos recorded in 2019 in the Indian city of Pune. These sounds capture typical soundscapes of this vibrant metropolis.The Ambisonics soundscape composition creates a continuous transition between sounds that convey different cultures of individual and social listening, such as human relationships, animals, technical devices, architectures, and structures of space and time. A second layer results from transformations of the original Ambisonics sounds through granular synthesis that explores unconscious cognitive sound assemblages. A third layer is based on bass flute sounds that have been electronically processed and spatialized using wavefield synthesis.
+  „Pune Metamorphosis“ was made possible by the Fulbright Scholarship program.

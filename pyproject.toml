@@ -12,7 +12,16 @@ authors = [
 maintainers = [
     { name = "Max Weidauer", email = "weidauer@campus.tu-berlin.de" },
 ]
-dependencies = ["python-osc", "apscheduler", "pyyaml", "flask", "xdg", "click"]
+dependencies = [
+    "python-osc",
+    "apscheduler",
+    "pyyaml",
+    "fastapi",
+    "xdg",
+    "click",
+    "uvicorn",
+    "websockets",
+]
 
 [build-system]
 requires = ["flit_core<4", "versioneer[toml]==0.29"]
@@ -20,7 +29,7 @@ build-backend = "flit_core.buildapi"
 
 
 [project.scripts]
-showcontrol = "showcontrol.app:run"
+showcontrol = "showcontrol.main:main"
 showcontrol_schedule_generator = "showcontrol.schedule_generator:main"
 
 [tool.versioneer]

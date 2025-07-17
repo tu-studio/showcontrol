@@ -1,10 +1,15 @@
-name: wasserwelten
-title: Wasserwelten
-title_en: Worlds of Water
+id: wasserwelten
+title_de: Wasserwelten
+title_en: Water Worlds
+artist: Moritz Schuck & Julie Daudré
 audio_index: 12
 video_index: 11
 duration:
   minutes: 8
   seconds: 48
-description: >
-  Wasser ist Nass, Die Welt ist Wasser => Die Welt ist Nass
+description: |
+  Im urbanen Umfeld ist Wasser allgegenwärtig. Die Geräusche, die dieses Element erzeugt, erklingen an vielen Stellen in der Stadt. Oftmals werden sie weniger bewusst wahrgenommen, da andere maschinell oder menschlich erzeugten Geräusche maskierend wirken. Mit verschiedenen technischen Hilfsmitteln wie z. B. der Granularsynthese ausgestattet, begeben sich Moritz Schuck und Julie Daudré auf eine kunstvolle Reise durch die Wasserwelten.
+  „Wasserwelten“ entstand im Rahmen des Kurses „Spatial Audio: Production & Performance“ im Sommersemester 2022 im Elektronischen Studio der TU Berlin. Im Lauf eines Semesters konnten die Student:innen eine künstlerische oder technisch/wissenschaftliche Fragestellung bearbeiten.
+description_en: |
+  In an urban environment, water is omnipresent. The sounds produced by this element resound in many places in the city. Often, this is less consciously perceived due to the masking effect of other machine- or human-generated sounds. Equipped with various technical means such as granular synthesis, Moritz Schuck and Julie Daudré head off on an artistic journey through the water worlds.
+  „Water Worlds“ was produced as part of the course „Spatial Audio: Production & Performance“ in the summer semester of 2022 at the Electronic Studio of the TU Berlin. In the course of one semester, the students could work on an artistic or technical/scientific topic.

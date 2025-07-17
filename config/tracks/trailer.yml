@@ -1,11 +1,13 @@
-name: trailer
-title: Trailer
+id: trailer
+short_title: Trailer
+title_de: Trailer
 title_en: Trailer
 audio_index: 1
 video_index: 0
 duration:
   minutes: 3
   seconds: 0
-description: >
-  Blabla
-  blablabla
+description: |
+  TODO
+description_en: |
+  TODO

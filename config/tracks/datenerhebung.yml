@@ -1,10 +1,18 @@
-name: datenerhebung
-title: Korea Datenerhebung
-title_en: Korea data collection
+id: datenerhebung
+short_title: Korea Datenerhebung
+title_de: Datenerhebung (Ein Traurigkeitslied)
+title_en: Data Aquisition (A Song of Sadness)
+artist: Moritz Fehr
 audio_index: 5
 video_index: 3
 duration:
   minutes: 20
   seconds: 0
-description: >
-  Korea
+description: |
+  In den Jahren zwischen 1915 und 1918 nahmen Mitarbeiter der sogenannten Königlich Preußischen Phonographischen Kommission im Kriegsgefangenenlager Königsbrück bei Dresden die Stimmen des Lagerinsassen auf Wachswalzen und Schellackplatten auf.
+  Grigori Kim (Kim Hong-Jun), der als Soldat der russischen Armee hier festgehalten wurde, sang hier am 22. November 1916 unter anderem das koreanische Volkslied Susimga ein. Die Aufnahme des Liedes ist bis heute erhalten und Teil der Sammlung des Lautarchivs Berlin.
+  Die Raumklangkomposition „Datenerhebung (Ein Traurigkeitslied)“ setzt sich mit dieser Aufnahme von Susimga und ihrer Bedeutung für die Gegenwart auseinander. Aufgrund der Zwangssituation bei der Aufnahme sowie der bis heute ungeklärten Fragen bezüglich der Urheber- und Persönlichkeitsrechte des Sängers Grigori Kim wird die historische Aufnahme hier nicht wiedergegeben.
+description_en: |
+  In the years between 1915 and 1918, employees of the so-called Royal Prussian Phonographic Commission recorded the voices of prisoners at the Königsbrück POW camp near Dresden on wax cylinders and shellac records.
+  On November 22, 1916, Grigori Kim (Kim Hong-Jun), who was held here as a soldier of the Russian army, sang, along with others, the Korean folk song Susimga. The recording of the song has been preserved to this day and is part of the collection of the Lautarchiv Berlin.
+  Data Acquisition (A Song of Sadness) engages with this recording of Susimga and its significance for the present. Due to the forced situation concerning the recording as well as the still unresolved questions regarding the copyright and personal rights of the singer Grigori Kim, the historical recording is not reproduced here.
