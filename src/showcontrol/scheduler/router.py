@@ -31,16 +31,16 @@ class SchedulerState(str, Enum):
 
 @router.post("/scheduler_state")
 # @router.put("scheduler_state")
-def set_scheduler_state(state: SchedulerState) -> SchedulerState:
+async def set_scheduler_state(state: SchedulerState) -> SchedulerState:
     if state == SchedulerState.paused:
-        schedctrl.scheduler_pause()
+        await schedctrl.scheduler_pause()
     else:
         schedctrl.scheduler_resume()
     return SchedulerState.playing if schedctrl.is_running() else SchedulerState.paused
 
 
 @router.get("/scheduler_state")
-def get_scheduler_state():
+async def get_scheduler_state():
 
     return {
         "state": (
@@ -50,19 +50,19 @@ def get_scheduler_state():
 
 
 @router.get("/upcoming_tracks")
-def get_upcoming_tracks(n_tracks: int = 20):
+async def get_upcoming_tracks(n_tracks: int = 20):
     return schedctrl.get_upcoming_tracks(n_tracks)
 
 
 @router.get("/playing_track")
-def get_playing_track() -> Track:
+async def get_playing_track() -> Track:
     return schedctrl.get_playing_track()
 
 
 @router.post("/play_track")
-def play_track(track_id: str):
+async def play_track(track_id: str):
     try:
-        schedctrl.play_track(track_id)
+        await schedctrl.play_track(track_id)
     except KeyError:
         return "invalid track name", 404
 
@@ -70,7 +70,7 @@ def play_track(track_id: str):
 
 
 @router.post("/schedule_track")
-def schedule_track(track_id: str, interval: int):
+async def schedule_track(track_id: str, interval: int):
 
     try:
         schedctrl.schedule_track(track_id, interval)

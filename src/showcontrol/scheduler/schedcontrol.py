@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 
 import apscheduler
@@ -7,6 +8,7 @@ from apscheduler.schedulers import (
 )
 from pythonosc.udp_client import SimpleUDPClient
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import socket
 import json
 import time
@@ -49,7 +51,7 @@ class SchedControl(object):
         print(f"communicating with reaper at {self.reaper_hostname}:{self.reaper_port}")
 
         # setup scheduler
-        self.sched = BackgroundScheduler()
+        self.sched = AsyncIOScheduler()
         self.add_jobs_to_scheduler()
 
     def start_scheduler(self):
@@ -63,9 +65,6 @@ class SchedControl(object):
             self.sched.shutdown(wait=False)
         except SchedulerNotRunningError:
             pass
-
-    def __del__(self):
-        self.stop_scheduler()
 
     def play_reaper(self, track_nr):
         """sends OSC-Messages to reaper to start playing the track with the corresponding track_nr
@@ -99,32 +98,32 @@ class SchedControl(object):
             sock.sendto(message, (self.video_broadcast_ip, self.info_broadcast_port))
         sock.close()
 
-    def video_pause(self):
+    async def video_pause(self):
         try:
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)
             self.send_udp_broadcast({"command": ["set_property", "pause", "yes"]})
         except:
             print("sending pause command failed")
 
-    def video_resume(self):
+    async def video_resume(self):
         try:
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
             self.send_udp_broadcast({"command": ["set_property", "pause", "no"]})
         except:
             print("sending play command failed")
 
-    def scheduler_pause(self):
+    async def scheduler_pause(self):
         """Pauses scheduler and playback"""
         log.info("Pausing Scheduler")
         self.sched.pause()
         self.playing = False
 
         self.reaper.send_message("/track/1/mute", [1])
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         self.reaper.send_message("/stop", [1.0])
 
         # Video nr 0 starts with a black screen
-        self.play_video(0, start_paused=True)
+        await self.play_video(0, start_paused=True)
 
     def scheduler_resume(self):
         """Resumes the scheduler. Playback is not resumed"""
@@ -132,7 +131,7 @@ class SchedControl(object):
         self.reaper.send_message("/track/1/mute", [0])
         self.sched.resume()
 
-    def play_track(
+    async def play_track(
         self,
         track_id: str,
         pause_scheduler: bool = True,
@@ -166,9 +165,9 @@ class SchedControl(object):
 
         self.play_reaper(track.audio_index)
         if track.video_index != -1:
-            self.play_video(track.video_index)
+            await self.play_video(track.video_index)
 
-    def play_video(self, video_index, start_paused=False):
+    async def play_video(self, video_index, start_paused=False):
         """Play the video with the given index on all video players, using their specified broadcast addresses
 
         Args:
@@ -183,7 +182,7 @@ class SchedControl(object):
             # machines are on "freeze on first frame", so the video players inside need an explicit play/unpause command.
             # start the video on the inner screens
             if not start_paused:
-                time.sleep(0.03)
+                await asyncio.sleep(0.03)
                 self.send_udp_broadcast(
                     {"command": ["set_property", "pause", "no"], "async": True},
                     self.video_broadcast_port,
@@ -270,12 +269,3 @@ class SchedControl(object):
 
     def is_running(self) -> bool:
         return self.sched.state == apscheduler.schedulers.base.STATE_RUNNING
-
-
-if __name__ == "__main__":
-    sched = SchedControl()
-    from time import sleep
-
-    sleep(1)
-    tracks = sched.get_upcoming_tracks(150)
-    print(tracks)

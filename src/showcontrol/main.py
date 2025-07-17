@@ -47,7 +47,9 @@ static_path = Path(__file__).parent / "static"
 
 @app.get("/{path:path}")
 async def frontend_handler(path: str):
-    fp = static_path / path
+    fp = (static_path / path).resolve()
+    if not fp.is_relative_to(static_path):
+        raise HTTPException(404, "file not found")
 
     # to handle react-router singlepage apps redirect unknown paths to
     if not fp.exists() or not fp.is_file():
