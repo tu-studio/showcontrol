@@ -89,7 +89,7 @@ async def frontend_handler(path: str):
 @click.option(
     "-p",
     "--api-port",
-    default=8000,
+    default=8080,
     type=click.INT,
     help="the port the api listens on",
 )
