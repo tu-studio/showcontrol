@@ -14,8 +14,7 @@ import json
 import time
 import logging
 from .config import (
-    get_config,
-    read_config_option,
+    get_main_config,
     read_schedule,
     read_tracks,
 )
@@ -29,26 +28,23 @@ log = logging.getLogger(__name__)
 class SchedControl(object):
     def __init__(self):
 
-        self.config = get_config()
+        config = get_main_config()
         # read track configs
         self.generate_track_list()
 
         # setup ports and ip for video panels
-        self.video_broadcast_ip = read_config_option(self.config, "broadcast_ip", str)
-        self.video_broadcast_port = read_config_option(self.config, "video_port", int)
-        self.info_broadcast_port = read_config_option(self.config, "info_port", int)
+        self.video_broadcast_ip = config.video_screens.broadcast_ip
+        self.video_broadcast_port = config.video_screens.video_port
+        self.info_broadcast_port = config.video_screens.info_port
 
         self.playing = False
         self.playing_track = self.tracks["trailer"].id
 
         # setup reaper connection
-        self.reaper_hostname = read_config_option(
-            self.config, "reaper_hostname", str, "127.0.0.1"
+        self.reaper = SimpleUDPClient(config.reaper.hostname, config.reaper.port)
+        print(
+            f"communicating with reaper at {config.reaper.hostname}:{config.reaper.port}"
         )
-        self.reaper_port = read_config_option(self.config, "reaper_port", int, 8000)
-
-        self.reaper = SimpleUDPClient(self.reaper_hostname, self.reaper_port)
-        print(f"communicating with reaper at {self.reaper_hostname}:{self.reaper_port}")
 
         # setup scheduler
         self.sched = AsyncIOScheduler()
@@ -201,22 +197,22 @@ class SchedControl(object):
 
     def add_jobs_to_scheduler(self):
         """Read the schedule specified in the config files, then add all jobs to the scheduler"""
-        for job in read_schedule():
-            if job["command"] != "play":
+        for job in read_schedule().schedule:
+            if job.command != "play":
                 log.warning(
-                    f"could not add job from schedule: invalid command {job['command']}"
+                    f"could not add job from schedule: invalid command {job.command}"
                 )
                 continue
 
             self.sched.add_job(
                 self.play_track,
                 "cron",
-                hour=job["hour"],
-                minute=job["minute"],
-                second=job["second"],
-                day_of_week=job["day_of_week"],
+                hour=job.hour,
+                minute=job.minute,
+                second=job.second,
+                day_of_week=job.day_of_week,
                 args=[
-                    job["track_id"],
+                    job.track_id,
                     False,
                 ],  # first arg is track_id, second is whether scheduler should be paused
             )

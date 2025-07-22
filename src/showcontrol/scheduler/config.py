@@ -1,10 +1,11 @@
+from ipaddress import ip_address
 from pathlib import Path
 import os
 from dataclasses import dataclass
 import logging
-from typing import Optional, TypeVar
+from typing import Any
 from collections.abc import Callable
-from pydantic import BaseModel
+from pydantic import BaseModel, IPvAnyAddress, PositiveInt
 import yaml
 
 
@@ -52,7 +53,63 @@ class Track(BaseModel):
     description_en: str = ""
 
 
+class ScheduledItem(BaseModel):
+    track_id: str
+    command: str
+    hour: int
+    minute: int
+    second: int
+    day_of_week: str | int
+
+
+class ShowcontrolSchedule(BaseModel):
+    schedule: list[ScheduledItem]
+
+
+class HostConfig(BaseModel):
+    port: PositiveInt
+    hostname: str
+
+
+class ShowcontrolConfig(BaseModel):
+    ip: str
+    port_osc_control: PositiveInt
+    port_osc_kreuz_listener: PositiveInt
+    port_api: PositiveInt
+
+
+class VideoscreenConfig(BaseModel):
+    broadcast_ip: str
+    video_port: PositiveInt
+    info_port: PositiveInt
+
+
+class Config(BaseModel):
+    reaper: HostConfig = HostConfig(port=8000, hostname="127.0.0.1")
+    osc_kreuz: HostConfig = HostConfig(port=4999, hostname="127.0.0.1")
+    showcontrol: ShowcontrolConfig = ShowcontrolConfig(
+        ip="0.0.0.0",
+        port_osc_control=9002,
+        port_osc_kreuz_listener=55156,
+        port_api=8080,
+    )
+    video_screens: VideoscreenConfig = VideoscreenConfig(
+        broadcast_ip="172.25.19.255", video_port=12339, info_port=12340
+    )
+
+
+class Block(BaseModel):
+    name: str
+    length: int
+    track_padding: int
+    tracks: list[str]
+
+
 class ConfigError(Exception):
+    pass
+
+
+class TrackConfigError(ConfigError):
     pass
 
 
@@ -98,12 +155,24 @@ def find_config_files(config_path: Path | None = None) -> ConfigPaths:
     return paths
 
 
-def read_config_file(config_path: Path) -> dict:
+def read_config_file(config_path: Path) -> Any:
     with open(config_path) as f:
         return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def get_config(config_path: Path | None = None) -> dict:
+# def get_config(config_path: Path | None = None) -> dict:
+#     if config_path is None:
+#         if config_paths is None:
+#             find_config_files()
+#         if config_paths is None:
+#             raise ConfigError(
+#                 "no config paths found, call find_config_files() before trying to read a config file"
+#             )
+#         config_path = config_paths.config_file_path
+#     return read_config_file(config_path)
+
+
+def get_main_config(config_path: Path | None = None) -> Config:
     if config_path is None:
         if config_paths is None:
             find_config_files()
@@ -112,41 +181,41 @@ def get_config(config_path: Path | None = None) -> dict:
                 "no config paths found, call find_config_files() before trying to read a config file"
             )
         config_path = config_paths.config_file_path
-    return read_config_file(config_path)
+    return Config(**read_config_file(config_path))
 
 
-T = TypeVar("T")
+# T = TypeVar("T")
 
 
-def read_config_option(
-    config,
-    option_name: str,
-    option_type: Callable[..., T] | None = None,
-    default: T = None,
-) -> T:
-    if option_name in config:
-        pass
-    elif option_name in deprecated_config_strings:
-        for deprecated_option_name in deprecated_config_strings[option_name]:
-            if deprecated_option_name in config:
-                log.warning(
-                    f"option {deprecated_option_name} is deprecated, please use {option_name} instead"
-                )
-                option_name = deprecated_option_name
-                break
-    else:
-        return default
+# def read_config_option(
+#     config,
+#     option_name: str,
+#     option_type: Callable[..., T] | None = None,
+#     default: T = None,
+# ) -> T:
+#     if option_name in config:
+#         pass
+#     elif option_name in deprecated_config_strings:
+#         for deprecated_option_name in deprecated_config_strings[option_name]:
+#             if deprecated_option_name in config:
+#                 log.warning(
+#                     f"option {deprecated_option_name} is deprecated, please use {option_name} instead"
+#                 )
+#                 option_name = deprecated_option_name
+#                 break
+#     else:
+#         return default
 
-    val = config[option_name]
+#     val = config[option_name]
 
-    if option_type is None:
-        return val
+#     if option_type is None:
+#         return val
 
-    try:
-        return option_type(val)
-    except Exception:
-        log.error(f"Could not read config option {option_name}, invalid type")
-    return config[option_name]
+#     try:
+#         return option_type(val)
+#     except Exception:
+#         log.error(f"Could not read config option {option_name}, invalid type")
+#     return config[option_name]
 
 
 def read_tracks(
@@ -188,7 +257,7 @@ def read_tracks(
     return tracks
 
 
-def read_blocks(block_dir: Path | str | None) -> dict:
+def read_blocks(block_dir: Path | str | None) -> dict[str, Block]:
     if block_dir is None:
         if config_paths is None:
             raise ConfigError(
@@ -200,9 +269,9 @@ def read_blocks(block_dir: Path | str | None) -> dict:
 
     blocks = {}
     for block_file in block_dir.glob("*.yml"):
-        block = read_config_file(block_file)
+        block = Block(**read_config_file(block_file))
 
-        identifier = block["name"]
+        identifier = block.name
         if identifier in blocks:
             raise Exception(f"Block identifier {identifier} is not unique")
 
@@ -210,7 +279,7 @@ def read_blocks(block_dir: Path | str | None) -> dict:
     return blocks
 
 
-def read_schedule(schedule_path: Path | None = None) -> dict:
+def read_schedule(schedule_path: Path | None = None) -> ShowcontrolSchedule:
     # TODO validate
     if schedule_path is None:
         if config_paths is None:
@@ -221,4 +290,5 @@ def read_schedule(schedule_path: Path | None = None) -> dict:
 
     if not (schedule_path.exists() and schedule_path.is_file()):
         raise ConfigError("No Schedule File found")
-    return read_config_file(schedule_path)
+
+    return ShowcontrolSchedule(schedule=read_config_file(schedule_path))

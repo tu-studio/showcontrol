@@ -30,7 +30,7 @@ build-backend = "flit_core.buildapi"
 
 [project.scripts]
 showcontrol = "showcontrol.main:main"
-showcontrol_schedule_generator = "showcontrol.schedule_generator:main"
+showcontrol_schedule_generator = "showcontrol.scheduler.schedule_generator:main"
 
 [tool.versioneer]
 VCS = "git"

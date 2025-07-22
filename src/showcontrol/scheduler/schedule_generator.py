@@ -6,7 +6,7 @@ import logging
 
 import click
 
-from .config import read_blocks, read_tracks
+from .config import read_blocks, read_tracks, read_schedule
 
 log = logging.getLogger()
 
@@ -28,31 +28,31 @@ day_names = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
 def create_alternative_schedule(input_file, output_file, tracks_folder):
-    tracks = read_tracks(tracks_folder, identifier_is_name=False)
-    with open(input_file, "r") as f:
-        schedule = yaml.safe_load(f)
+    tracks = read_tracks(tracks_folder, identifier_is_name=True)
+    schedule = read_schedule(input_file).schedule
 
+    runtimes = {}
     # prepare track dicts by adding empty runtime dicts
     for t in tracks.values():
-        t["runtimes"] = {}
+        runtimes[t.id] = {}
 
     # populate runtime dicts by adding all occurances from the schedule file to them
     for e in schedule:
-        idx = e["audio_index"]
-        day_of_week = e["day_of_week"]
-        time = f"{e['hour']:02}:{e['minute']:02}"
+        idx = e.track_id
+        day_of_week = e.day_of_week
+        time = f"{e.hour:02}:{e.minute:02}"
 
-        if day_of_week not in tracks[idx]["runtimes"]:
-            tracks[idx]["runtimes"][day_of_week] = []
-        tracks[idx]["runtimes"][day_of_week].append(time)
+        if day_of_week not in runtimes[idx]:
+            runtimes[idx][day_of_week] = []
+        runtimes[idx][day_of_week].append(time)
 
     # write schedule to file
     with open(output_file, "w") as f:
         for t in tracks.values():
             # write track title
-            f.write(t["title"] + "\n")
+            f.write(t.short_title + "\n")
 
-            for day_nrs, times in t["runtimes"].items():
+            for day_nrs, times in runtimes[t.id].items():
                 # convert day_nrs to human readable format
                 if isinstance(day_nrs, str):
                     day_nrs = day_nrs.split(",")
@@ -93,7 +93,7 @@ def create_readable_txt(input_file, output_file, tracks_folder):
 
             idx = scheduled_item["audio_index"]
             if idx in track_dict:
-                track_title = track_dict[idx]["title"]
+                track_title = track_dict[idx].id
                 outfile.write(f"{days:<20}\t{timestr}\t{track_title}\n")
             else:
                 print(f"index {idx} missing from track_dict")
@@ -134,7 +134,7 @@ def round_up_time(timestamp: datetime, round_to_minutes=5):
 def create_schedule(path_config, output_file):
     # load tracks
     tracks = read_tracks(path_config / "tracks")
-    print(tracks)
+    print("\n".join([t.short_title for t in tracks.values()]))
     # load blocks
     blocks = read_blocks(path_config / "blocks")
 
@@ -178,36 +178,32 @@ def create_schedule(path_config, output_file):
                     break
 
                 # iterate over all tracks in a block
-                for track_name in block["tracks"]:
+                for track_name in block.tracks:
                     if trackstart >= time_stop:
                         day_over = True
                         break
-
-                    audio_idx = tracks[track_name]["audio_index"]
-                    video_idx = tracks[track_name]["video_index"]
-                    track_minutes = tracks[track_name]["duration"]["minutes"]
-                    track_seconds = tracks[track_name]["duration"]["seconds"]
+                    track = tracks[track_name]
 
                     writeEntry(
                         out_file,
                         trackstart.hour,
                         trackstart.minute,
                         trackstart.second,
-                        audio_idx,
-                        video_idx,
+                        track.audio_index,
+                        track.video_index,
                         track_name,
                         days,
                     )
 
                     trackstart = round_up_time(
                         trackstart
-                        + timedelta(minutes=track_minutes, seconds=track_seconds)
-                        + timedelta(seconds=block["track_padding"])
+                        + timedelta(
+                            minutes=track.duration.minutes,
+                            seconds=track.duration.seconds,
+                        )
+                        + timedelta(seconds=block.track_padding)
                     )
-                # blockstart = blockstart + timedelta(minutes=block["length"])
                 blockstart = trackstart
-                # if blockstart <= trackstart:
-                # log.warn("Block length is too short")
 
 
 @click.command(help="generate schedules for showcontrol")
