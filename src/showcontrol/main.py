@@ -5,57 +5,14 @@ from contextlib import asynccontextmanager
 
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
+from showcontrol.scheduler.config import TrackConfigError, find_config_files
 from .seamless_status.seamless_listener import SeamlessListener
 import click
 
 from .seamless_status.ws_connection_manager import WSConnectionManager
 from .seamless_status import router as status_router
 from .scheduler import router as scheduler_router
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global loop
-    if status_router.seamless_listener is None:
-        raise Exception("seamless listener is None, whyy")
-    scheduler_router.schedctrl.start_scheduler()
-    await status_router.seamless_listener.start_listening()
-    yield
-    status_router.seamless_listener.unsubscribe_from_osc_kreuz()
-    scheduler_router.schedctrl.stop_scheduler()
-
-
-app = FastAPI(lifespan=lifespan)
-
-
-# include status
-app.include_router(status_router.router, tags=["status"])
-app.include_router(scheduler_router.router, prefix="/api", tags=["scheduler"])
-# this enables serving static html files
-
-
-# app.mount(
-#     "/",
-#     StaticFiles(directory=Path(__file__).parent / "static", html=True),
-#     name="static",
-# )
-
-
-# serve the frontend
-static_path = Path(__file__).parent / "static"
-
-
-@app.get("/{path:path}")
-async def frontend_handler(path: str):
-    fp = (static_path / path).resolve()
-    if not fp.is_relative_to(static_path):
-        raise HTTPException(404, "file not found")
-
-    # to handle react-router singlepage apps redirect unknown paths to
-    if not fp.exists() or not fp.is_file():
-        fp = static_path / "index.html"
-    print(f"Returning file at: {fp}")
-    return FileResponse(fp)
 
 
 @click.command(help="Start the backend of the seamless status")
@@ -107,8 +64,22 @@ async def frontend_handler(path: str):
     type=click.STRING,
     help="the name with which to register at the osc-kreuz",
 )
+@click.option(
+    "-d",
+    "--disable-showcontrol",
+    is_flag=True,
+    help="disables the scheduling backend of showcontrol",
+    default=False,
+)
 def main(
-    osc_kreuz_hostname, osc_kreuz_port, ip, listener_port, api_port, n_sources, name
+    osc_kreuz_hostname,
+    osc_kreuz_port,
+    ip,
+    listener_port,
+    api_port,
+    n_sources,
+    name,
+    disable_showcontrol,
 ):
     # osc_kreuz_ip = "130.149.23.211" # kaorutest
 
@@ -119,6 +90,12 @@ def main(
 
     # osc_kreuz_ip = "192.168.178.100"  # tengo
 
+    try:
+        find_config_files()
+    except TrackConfigError:
+        print("could not find tracks or schedule, scheduler will not be started!")
+        disable_showcontrol = True
+
     status_router.seamless_listener = SeamlessListener(
         n_sources, ip, listener_port, osc_kreuz_hostname, osc_kreuz_port, name
     )
@@ -126,6 +103,51 @@ def main(
     status_router.connection_manager = WSConnectionManager(
         status_router.seamless_listener
     )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if status_router.seamless_listener is None:
+            raise Exception("seamless listener is None, whyy")
+
+        if not disable_showcontrol:
+            scheduler_router.schedctrl.start_scheduler()
+        await status_router.seamless_listener.start_listening()
+
+        yield
+
+        status_router.seamless_listener.unsubscribe_from_osc_kreuz()
+
+        if not disable_showcontrol:
+            scheduler_router.schedctrl.stop_scheduler()
+
+    app = FastAPI(lifespan=lifespan)
+
+    # include status
+    app.include_router(status_router.router, tags=["status"])
+
+    if not disable_showcontrol:
+        app.include_router(scheduler_router.router, prefix="/api", tags=["scheduler"])
+    # this enables serving static html files
+
+    # app.mount(
+    #     "/",
+    #     StaticFiles(directory=Path(__file__).parent / "static", html=True),
+    #     name="static",
+    # )
+
+    # serve the frontend
+    static_path = Path(__file__).parent / "static"
+
+    @app.get("/{path:path}")
+    async def frontend_handler(path: str):
+        fp = (static_path / path).resolve()
+        if not fp.is_relative_to(static_path):
+            raise HTTPException(404, "file not found")
+
+        # to handle react-router singlepage apps redirect unknown paths to
+        if not fp.exists() or not fp.is_file():
+            fp = static_path / "index.html"
+        return FileResponse(fp)
 
     import uvicorn
 
