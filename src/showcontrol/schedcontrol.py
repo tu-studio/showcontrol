@@ -169,11 +169,11 @@ class SchedControl(object):
         except KeyError:
             raise KeyError("Invalid Track")
 
-        log.info(
-            f"Play track: {track_id} (audio_index {track['audio_index']}, video_index {track['video_index']}"
-        )
-
-        self.play_reaper(track["audio_index"])
+        # log.info(
+        #     f"Play track: {track_id} (audio_index {track['audio_index']}, video_index {track['video_index']}"
+        # )
+        if "audio_index" in track and track["audio_index"] != -1:
+            self.play_reaper(track["audio_index"])
         if "video_index" in track:
             self.play_video(track["video_index"])
 
