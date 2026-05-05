@@ -169,7 +169,16 @@ class SeamlessListener:
         source_id = int(values[0])
         renderer_id = int(values[1])
         gain = float(values[2])
-        self.sources[source_id].gain[renderer_id] = gain
+        try:
+            self.sources[source_id].gain[renderer_id] = gain
+        except IndexError:
+            if source_id >= len(self.sources):
+                print(f"WARN: source {source_id} does not exist")
+            else:
+                print(
+                    f"WARN: for source {source_id}: renderer {renderer_id} does not exist"
+                )
+            return
 
         # if self.gain_callback is not None:
         #     await self.gain_callback(source_id, renderer_id, gain)
