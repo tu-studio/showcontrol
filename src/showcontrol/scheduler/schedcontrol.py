@@ -13,6 +13,8 @@ import socket
 import json
 import time
 import logging
+
+from showcontrol.util import create_udp_client
 from .config import (
     get_main_config,
     read_schedule,
@@ -41,7 +43,9 @@ class SchedControl(object):
         self.playing_track = self.tracks["trailer"].id
 
         # setup reaper connection
-        self.reaper = SimpleUDPClient(config.reaper.hostname, config.reaper.port)
+
+        self.reaper = create_udp_client(config.reaper.hostname, config.reaper.port)
+
         print(
             f"communicating with reaper at {config.reaper.hostname}:{config.reaper.port}"
         )

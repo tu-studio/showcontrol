@@ -12,6 +12,8 @@ from typing import Any, Callable, List, Coroutine
 import logging
 from threading import Timer
 
+from showcontrol.util import create_udp_client
+
 log = logging.getLogger()
 
 
@@ -82,7 +84,9 @@ class SeamlessListener:
 
         self.osc_dispatcher = Dispatcher()
         self.is_connected = False
-        self.osc_client = SimpleUDPClient(self.osc_kreuz_hostname, self.osc_kreuz_port)
+        self.osc_client = create_udp_client(
+            self.osc_kreuz_hostname, self.osc_kreuz_port
+        )
         self.reconnect_timer = Watchdog(reconnect_timeout, self.subscribe_to_osc_kreuz)
         self.asyncio_event_loop: None | AbstractEventLoop = None
 
