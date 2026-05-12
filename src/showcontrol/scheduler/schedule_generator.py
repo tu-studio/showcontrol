@@ -20,7 +20,7 @@ day_numbers = {
     "sunday": 6,
 }
 
-time_start = datetime(2022, 2, 1, 10, 40, 0)
+time_start = datetime(2022, 2, 1, 10, 45, 0)
 time_stop = datetime(2022, 2, 1, 18, 30, 0)
 
 
