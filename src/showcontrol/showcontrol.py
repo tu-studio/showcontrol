@@ -54,4 +54,9 @@ def construct_showcontrol_bluperint(schedctrl: SchedControl) -> Blueprint:
             track_keys=sorted_track_keys,
         )
 
+    @bp.route("/viewer", methods=("GET",))
+    @login_required
+    def source_viewer():
+        return render_template("viewer.html")
+
     return bp
