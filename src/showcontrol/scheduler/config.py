@@ -46,7 +46,7 @@ class Track(BaseModel):
     title_de: str
     title_en: str
     artist: str = ""
-    audio_index: int
+    audio_index: int = -1
     video_index: int = -1
     duration: TrackLength
     description: str

@@ -14,6 +14,7 @@ import json
 import time
 import logging
 
+from showcontrol.scheduler.config import Track
 from showcontrol.util import create_udp_client
 from .config import (
     get_main_config,
@@ -147,7 +148,7 @@ class SchedControl(object):
             print("Error: Play_track argument wasn't of type string")
             return
         try:
-            track = self.tracks[track_id]
+            track: Track = self.tracks[track_id]
         except KeyError:
             raise KeyError("Invalid Track")
         self.playing = True
@@ -163,7 +164,8 @@ class SchedControl(object):
             f"Play track: {track_id} (audio_index {track.audio_index}, video_index {track.video_index}"
         )
 
-        self.play_reaper(track.audio_index)
+        if track.audio_index != -1:
+            self.play_reaper(track.audio_index)
         if track.video_index != -1:
             await self.play_video(track.video_index)
 
