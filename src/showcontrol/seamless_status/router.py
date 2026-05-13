@@ -14,12 +14,13 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
+# these will need to be set from a class importing this file, sorry that's just how it is for now...
 seamless_listener: SeamlessListener | None = None
 connection_manager: WSConnectionManager | None = None
 
 
 async def get_connection_manager():
-    # todo handle cm being none
+    # TODO handle cm being none
     return connection_manager
 
 
@@ -44,7 +45,6 @@ async def websocket_endpoint(
     websocket: WebSocket,
     connection_manager: WSConnectionManager = Depends(get_connection_manager),
 ):
-    # print("aah")
     await connection_manager.connect(websocket)
 
     try:

@@ -7,7 +7,6 @@ osc_kreuz:
 
 showcontrol:
   ip: 0.0.0.0
-  port_osc_control: 9002
   port_osc_kreuz_listener: 55156
   port_api: 8080
 
@@ -15,7 +14,6 @@ video_screens:
   broadcast_ip: 10.30.70.255
   video_port: 12339
   info_port: 12340
-
 # system:
 #   - name: RE01
 #     ip: 172.25.18.201

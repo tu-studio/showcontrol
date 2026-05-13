@@ -6,8 +6,6 @@ from apscheduler.schedulers import (
     SchedulerAlreadyRunningError,
     SchedulerNotRunningError,
 )
-from pythonosc.udp_client import SimpleUDPClient
-from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import socket
 import json

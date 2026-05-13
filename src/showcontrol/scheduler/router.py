@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from .schedcontrol import SchedControl
 from .config import Track
 
+
 router = APIRouter()
 
 schedctrl = SchedControl()
