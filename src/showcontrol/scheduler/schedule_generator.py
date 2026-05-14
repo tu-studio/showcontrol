@@ -1,3 +1,5 @@
+import sys
+from typing import Any
 import yaml
 import os
 from datetime import datetime, timedelta
@@ -6,7 +8,7 @@ import logging
 
 import click
 
-from .config import read_blocks, read_tracks, read_schedule
+from ..config import ConfigError, ConfigManager, ConfigError
 
 log = logging.getLogger()
 
@@ -27,11 +29,11 @@ time_stop = datetime(2022, 2, 1, 18, 30, 0)
 day_names = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
-def create_alternative_schedule(input_file, output_file, tracks_folder):
-    tracks = read_tracks(tracks_folder, identifier_is_name=True)
-    schedule = read_schedule(input_file).schedule
+def create_alternative_schedule(input_file, output_file, config_manager: ConfigManager):
+    tracks = config_manager.read_tracks(identifier_is_name=True)
+    schedule = config_manager.read_schedule(input_file).schedule
 
-    runtimes = {}
+    runtimes: dict[str, Any] = {}
     # prepare track dicts by adding empty runtime dicts
     for t in tracks.values():
         runtimes[t.id] = {}
@@ -65,8 +67,8 @@ def create_alternative_schedule(input_file, output_file, tracks_folder):
             f.write("\n")
 
 
-def create_readable_txt(input_file, output_file, tracks_folder):
-    track_dict = read_tracks(tracks_folder, identifier_is_name=False)
+def create_readable_txt(input_file, output_file, config_manager: ConfigManager):
+    track_dict = config_manager.read_tracks(identifier_is_name=False)
     with open(input_file, "r") as f:
         schedule = yaml.safe_load(f)
 
@@ -131,15 +133,23 @@ def round_up_time(timestamp: datetime, round_to_minutes=5):
     return timestamp + (datetime.min - timestamp) % delta
 
 
-def create_schedule(path_config, output_file):
+def create_schedule(config_manager: ConfigManager, output_file):
     # load tracks
-    tracks = read_tracks(path_config / "tracks")
+    try:
+        tracks = config_manager.read_tracks()
+    except ConfigError as e:
+        print(f"ERROR: {e}. Exiting...")
+        sys.exit(-1)
     print("\n".join([t.short_title for t in tracks.values()]))
     # load blocks
-    blocks = read_blocks(path_config / "blocks")
+    try:
+        blocks = config_manager.read_blocks()
+    except ConfigError as e:
+        print(f"ERROR: {e}. Exiting...")
+        sys.exit(-1)
 
     # load block plan
-    with open(path_config / "blockplan.yml") as f:
+    with open(config_manager.config_file_path.parent / "blockplan.yml") as f:
         blockplan = yaml.load(f, Loader=yaml.FullLoader)
 
     # find days with explicit schedules
@@ -232,7 +242,8 @@ def create_schedule(path_config, output_file):
     default=None,
 )
 def main(config_dir: Path, output_file: Path, readable_schedule_dir: Path | None):
-    create_schedule(config_dir, output_file)
+    config_manager = ConfigManager(config_dir)
+    create_schedule(config_manager, output_file)
     today = datetime.now().strftime("%Y-%m-%d")
 
     if readable_schedule_dir is None:
@@ -241,12 +252,12 @@ def main(config_dir: Path, output_file: Path, readable_schedule_dir: Path | None
     create_readable_txt(
         output_file,
         readable_schedule_dir / f"hufoprogram_{today}_full_schedule.txt",
-        config_dir / "tracks",
+        config_manager,
     )
     create_alternative_schedule(
         output_file,
         readable_schedule_dir / f"hufoprogram_{today}_track_schedule.txt",
-        config_dir / "tracks",
+        config_manager,
     )
 
 
