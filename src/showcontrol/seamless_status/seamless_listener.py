@@ -12,6 +12,7 @@ from typing import Any, Callable, List, Coroutine
 import logging
 from threading import Timer
 
+from showcontrol.config import Config, ConfigManager
 from showcontrol.util import create_udp_client
 
 log = logging.getLogger()
@@ -63,22 +64,17 @@ class Watchdog(Exception):
 class SeamlessListener:
     def __init__(
         self,
-        n_sources: int,
-        listen_ip,
-        listen_port,
-        osc_kreuz_hostname,
-        osc_kreuz_port,
-        name="seamless_status",
+        config: Config,
         reconnect_timeout=5,
     ) -> None:
 
-        self.name = name
-        self.listen_ip = listen_ip
-        self.listen_port = listen_port
-        self.osc_kreuz_hostname = osc_kreuz_hostname
-        self.osc_kreuz_port = osc_kreuz_port
+        self.name = config.name
+        self.listen_ip = config.showcontrol.ip
+        self.listen_port = config.showcontrol.port_osc_kreuz_listener
+        self.osc_kreuz_hostname = config.osc_kreuz.hostname
+        self.osc_kreuz_port = config.osc_kreuz.port
 
-        self.sources = [Source(idx=i) for i in range(n_sources)]
+        self.sources = [Source(idx=i) for i in range(config.n_sources)]
         self.room_name: str = ""
         self.polygon: list[Point3D] = []
 
@@ -156,9 +152,13 @@ class SeamlessListener:
         source_id = int(values[0])
         x, y, z = map(float, values[1:])
 
-        self.sources[source_id].x = x
-        self.sources[source_id].y = y
-        self.sources[source_id].z = z
+        try:
+            self.sources[source_id].x = x
+            self.sources[source_id].y = y
+            self.sources[source_id].z = z
+        except IndexError:
+            print(f"WARN: source {source_id} does not exist")
+            return
 
         # if self.position_callback is not None:
         #     await self.position_callback(source_id, x, y, z)
@@ -176,7 +176,7 @@ class SeamlessListener:
         try:
             self.sources[source_id].gain[renderer_id] = gain
         except IndexError:
-            if source_id >= len(self.sources):
+            if not (0 <= source_id < len(self.sources)):
                 print(f"WARN: source {source_id} does not exist")
             else:
                 print(

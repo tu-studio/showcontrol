@@ -24,20 +24,20 @@ async def get_connection_manager():
     return connection_manager
 
 
-class ServiceStatus(BaseModel):
-    name: str
-    load_state: str
-    active_state: str
-    sub_state: str
+# class ServiceStatus(BaseModel):
+#     name: str
+#     load_state: str
+#     active_state: str
+#     sub_state: str
 
 
-class Services(BaseModel):
-    services: list[ServiceStatus]
+# class Services(BaseModel):
+#     services: list[ServiceStatus]
 
 
-pc_status: dict[str, dict[str, Services]] = {
-    "test": {"kaorutest": Services(services=[])}
-}
+# pc_status: dict[str, dict[str, Services]] = {
+#     "test": {"kaorutest": Services(services=[])}
+# }
 
 
 @router.websocket("/pos")
@@ -56,21 +56,21 @@ async def websocket_endpoint(
         connection_manager.disconnect(websocket)
 
 
-@router.post("/servicestatus/{room_id}/{pc_id}")
-async def update_service_status(room_id: str, pc_id: str, services: Services):
-    if room_id not in pc_status:
-        raise HTTPException(status_code=404, detail="Room not found")
-    if pc_id not in pc_status[room_id]:
-        raise HTTPException(status_code=404, detail="PC not found")
+# @router.post("/servicestatus/{room_id}/{pc_id}")
+# async def update_service_status(room_id: str, pc_id: str, services: Services):
+#     if room_id not in pc_status:
+#         raise HTTPException(status_code=404, detail="Room not found")
+#     if pc_id not in pc_status[room_id]:
+#         raise HTTPException(status_code=404, detail="PC not found")
 
-    pc_status[room_id][pc_id] = services
-    print(services)
-    return services
+#     pc_status[room_id][pc_id] = services
+#     print(services)
+#     return services
 
 
-@router.get("/servicestatus/{room_id}")
-async def get_service_status(room_id: str):
-    if room_id not in pc_status:
-        raise HTTPException(status_code=404, detail="Room not found")
+# @router.get("/servicestatus/{room_id}")
+# async def get_service_status(room_id: str):
+#     if room_id not in pc_status:
+#         raise HTTPException(status_code=404, detail="Room not found")
 
-    return pc_status[room_id]
+#     return pc_status[room_id]

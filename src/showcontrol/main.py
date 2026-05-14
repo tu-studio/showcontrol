@@ -2,58 +2,60 @@ from pathlib import Path
 from sched import scheduler
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
-
+import sys
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from showcontrol.scheduler.config import TrackConfigError, find_config_files
+from showcontrol.scheduler.schedcontrol import SchedControl
+
 from .seamless_status.seamless_listener import SeamlessListener
 import click
 
 from .seamless_status.ws_connection_manager import WSConnectionManager
 from .seamless_status import router as status_router
 from .scheduler import router as scheduler_router
+from .config import ConfigError, ConfigManager
 
 
 @click.command(help="Start the backend of the seamless status")
 @click.option(
     "-o",
     "--osc-kreuz-hostname",
-    default="127.0.0.1",
+    default=None,
     type=click.STRING,
     help="The hostname of the osc-kreuz to connect to",
 )
 @click.option(
     "--osc-kreuz-port",
-    default=4999,
+    default=None,
     type=click.INT,
     help="the settings port of the osc-kreuz to connect to",
 )
 @click.option(
     "-i",
     "--ip",
-    default="0.0.0.0",
+    default=None,
     type=click.STRING,
     help="the ip this program should listen on. needs to be accessible by the osc-kreuz",
 )
 @click.option(
     "-l",
     "--listener-port",
-    default=55156,
+    default=None,
     type=click.INT,
     help="the port the osc-kreuz listener listens on",
 )
 @click.option(
     "-p",
     "--api-port",
-    default=8080,
+    default=None,
     type=click.INT,
     help="the port the api listens on",
 )
 @click.option(
     "-s",
     "--n-sources",
-    default=32,
+    default=None,
     type=click.INT,
     help="the number of sources in the osc-kreuz",
 )
@@ -71,6 +73,13 @@ from .scheduler import router as scheduler_router
     help="disables the scheduling backend of showcontrol",
     default=False,
 )
+@click.option(
+    "-c",
+    "--config-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    help="path to config dir",
+    default=None,
+)
 def main(
     osc_kreuz_hostname,
     osc_kreuz_port,
@@ -80,23 +89,46 @@ def main(
     n_sources,
     name,
     disable_showcontrol,
+    config_dir,
 ):
 
-    try:
-        find_config_files()
-    except TrackConfigError:
+    config_manager = ConfigManager(config_dir)
+
+    if not config_manager.has_track_configs():
         print("could not find tracks or schedule, scheduler will not be started!")
         disable_showcontrol = True
 
+    try:
+        config = config_manager.get_main_config()
+    except ConfigError as e:
+        print(f"ERROR: {e}. Exiting...")
+        sys.exit(-3)
+    # override config values with cli values
+    for cli_option, config_container, config_key in [
+        (osc_kreuz_hostname, config.osc_kreuz, "hostname"),
+        (osc_kreuz_port, config.osc_kreuz, "port"),
+        (ip, config.showcontrol, "ip"),
+        (listener_port, config.showcontrol, "port_osc_kreuz_listener"),
+        (api_port, config.showcontrol, "port_api"),
+        (n_sources, config, "n_sources"),
+        (name, config, "name"),
+    ]:
+        if cli_option is not None:
+            # TODO this is not really a nice way of handling this
+            config_container.__setattr__(config_key, cli_option)
+
     # setup SeamlessListener and WSConnection manager and add it to status_router
     # these are being setup here, so we can use the schedule_generator without long wait times i think? that can probably be done in a better way
-    status_router.seamless_listener = SeamlessListener(
-        n_sources, ip, listener_port, osc_kreuz_hostname, osc_kreuz_port, name
-    )
+    status_router.seamless_listener = SeamlessListener(config)
 
     status_router.connection_manager = WSConnectionManager(
         status_router.seamless_listener
     )
+    try:
+        scheduler_router.schedctrl = SchedControl(config_manager)
+    except ConfigError as e:
+        print(f"ERROR: {e}. Exiting...")
+        sys.exit(-3)
 
     # lifespan manager to start scheduler and seamless listener before starting the app, and stop them before exiting
     @asynccontextmanager
@@ -104,15 +136,16 @@ def main(
         if status_router.seamless_listener is None:
             raise Exception("seamless listener is None, whyy")
 
-        if not disable_showcontrol:
+        if not disable_showcontrol and scheduler_router.schedctrl is not None:
             scheduler_router.schedctrl.start_scheduler()
         await status_router.seamless_listener.start_listening()
 
+        # the function pauses here and only continues when showcontrol is stopped
         yield
 
         status_router.seamless_listener.unsubscribe_from_osc_kreuz()
 
-        if not disable_showcontrol:
+        if not disable_showcontrol and scheduler_router.schedctrl is not None:
             scheduler_router.schedctrl.stop_scheduler()
 
     app = FastAPI(lifespan=lifespan)
@@ -143,7 +176,7 @@ def main(
     # serve the app using uvicorn
     import uvicorn
 
-    uvicorn.run(app, host=ip, port=api_port)
+    uvicorn.run(app, host=config.showcontrol.ip, port=config.showcontrol.port_api)
 
 
 if __name__ == "__main__":

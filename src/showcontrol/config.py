@@ -5,7 +5,8 @@ from dataclasses import dataclass
 import logging
 from typing import Any
 from collections.abc import Callable
-from pydantic import BaseModel, IPvAnyAddress, PositiveInt
+from pydantic import BaseModel, PositiveInt
+from pydantic_core import ValidationError
 import yaml
 
 
@@ -85,6 +86,8 @@ class VideoscreenConfig(BaseModel):
 
 
 class Config(BaseModel):
+    name: str = "seamless_status"
+    n_sources: int = 32
     reaper: HostConfig = HostConfig(port=8000, hostname="127.0.0.1")
     osc_kreuz: HostConfig = HostConfig(port=4999, hostname="127.0.0.1")
     showcontrol: ShowcontrolConfig = ShowcontrolConfig(
@@ -93,7 +96,7 @@ class Config(BaseModel):
         port_api=8080,
     )
     video_screens: VideoscreenConfig = VideoscreenConfig(
-        broadcast_ip="172.25.19.255", video_port=12339, info_port=12340
+        broadcast_ip="10.30.70.255", video_port=12339, info_port=12340
     )
 
 
@@ -108,12 +111,7 @@ class ConfigError(Exception):
     pass
 
 
-class TrackConfigError(ConfigError):
-    pass
-
-
 class ConfigManager:
-    tried_finding_config_files = False
     config_file_path: Path | None = None
     schedule_file_path: Path | None = None
     tracks_dir: Path | None = None
@@ -126,8 +124,6 @@ class ConfigManager:
 
         if config_path is not None and not config_path.exists():
             raise ConfigError(f"config path {config_path} does not exist, exiting")
-
-        self.tried_finding_config_files = True
 
         if config_path is None:
             for possible_config_path in default_config_file_locations:
@@ -160,27 +156,23 @@ class ConfigManager:
         with open(config_path) as f:
             return yaml.load(f, Loader=yaml.FullLoader)
 
-    # def get_config(config_path: Path | None = None) -> dict:
-    #     if config_path is None:
-    #         if config_paths is None:
-    #             find_config_files()
-    #         if config_paths is None:
-    #             raise ConfigError(
-    #                 "no config paths found, call find_config_files() before trying to read a config file"
-    #             )
-    #         config_path = config_paths.config_file_path
-    #     return read_config_file(config_path)
-
     def get_main_config(self) -> Config:
-        if config_path is None:
-            if self.config_paths is None:
-                self.find_config_files()
-            if self.config_paths is None:
-                raise ConfigError(
-                    "no config paths found, call find_config_files() before trying to read a config file"
-                )
-            config_path = self.config_paths.config_file_path
-        return Config(**read_config_file(config_path))
+        try:
+            return self.config
+        except AttributeError:
+            # read main config
+            if self.config_file_path is not None:
+                try:
+                    self.config = Config(**self.read_config_file(self.config_file_path))
+                except ValidationError as e:
+                    print_validation_error(self.config_file_path, e)
+                    raise ConfigError("failed to load main config")
+            else:
+                self.config = Config()
+            return self.config
+
+    def has_track_configs(self) -> bool:
+        return self.schedule_file_path is not None and self.tracks_dir is not None
 
     # T = TypeVar("T")
 
@@ -215,7 +207,7 @@ class ConfigManager:
     #     return config[option_name]
 
     def read_tracks(
-        track_dir: str | Path | None = None, identifier_is_name=True
+        self, track_dir: str | Path | None = None, identifier_is_name=True
     ) -> dict[str | int, Track]:
         """Reads all yaml track files in the specified directory
 
@@ -224,22 +216,24 @@ class ConfigManager:
             identifier_is_name (bool, optional): Specifies if the returned dict uses the names of the tracks as the outermost key. If set to False the audio_index is used instead. Defaults to True.
 
         Raises:
-            Exception:
+            ConfigError:
 
         Returns:
             dict: Contains all tracks
         """
         if track_dir is None:
-            if config_paths is None:
-                raise ConfigError(
-                    "no config paths found, call find_config_files() before trying to read a config file"
-                )
-            track_dir = config_paths.tracks_dir
+            if self.tracks_dir is None:
+                raise ConfigError("no track config found")
+            track_dir = self.tracks_dir
 
         track_dir = Path(track_dir)
         tracks = {}
         for track_file in track_dir.glob("*.yml"):
-            track = Track(**read_config_file(track_file))
+            try:
+                track = Track(**self.read_config_file(track_file))
+            except ValidationError as e:
+                print_validation_error(track_file, e)
+                raise ConfigError("failed to load track")
             if track.short_title == "":
                 track.short_title = track.title_de
 
@@ -248,25 +242,27 @@ class ConfigManager:
             )
 
             if identifier in tracks:
-                raise Exception(f"track identifier {identifier} is not unique!")
+                raise ConfigError(f"track identifier {identifier} is not unique!")
 
             tracks[identifier] = track
 
         return tracks
 
-    def read_blocks(block_dir: Path | str | None) -> dict[str, Block]:
+    def read_blocks(self, block_dir: Path | str | None = None) -> dict[str, Block]:
         if block_dir is None:
-            if config_paths is None:
-                raise ConfigError(
-                    "no config paths found, call find_config_files() before trying to read a config file"
-                )
-            block_dir = config_paths.blocks_dir
+            if self.blocks_dir is None:
+                raise ConfigError("no blocks config found")
+            block_dir = self.blocks_dir
 
         block_dir = Path(block_dir)
 
         blocks = {}
         for block_file in block_dir.glob("*.yml"):
-            block = Block(**read_config_file(block_file))
+            try:
+                block = Block(**self.read_config_file(block_file))
+            except ValidationError as e:
+                print_validation_error(block_file, e)
+                raise ConfigError("failed to load block")
 
             identifier = block.name
             if identifier in blocks:
@@ -275,16 +271,31 @@ class ConfigManager:
             blocks[identifier] = block
         return blocks
 
-    def read_schedule(schedule_path: Path | None = None) -> ShowcontrolSchedule:
-        # TODO validate
+    def read_schedule(self, schedule_path: Path | None = None) -> ShowcontrolSchedule:
+
         if schedule_path is None:
-            if config_paths is None:
-                raise ConfigError(
-                    "no config paths found, call find_config_files() before trying to read a config file"
-                )
-            schedule_path = config_paths.schedule_file_path
+            if self.schedule_file_path is None:
+                raise ConfigError("no config paths found")
+            schedule_path = self.schedule_file_path
 
         if not (schedule_path.exists() and schedule_path.is_file()):
             raise ConfigError("No Schedule File found")
 
-        return ShowcontrolSchedule(schedule=read_config_file(schedule_path))
+        try:
+            return ShowcontrolSchedule(schedule=self.read_config_file(schedule_path))
+        except ValidationError as e:
+            print_validation_error(schedule_path, e)
+            raise ConfigError("failed to load track")
+
+
+def print_validation_error(path: Path, e: ValidationError):
+    print(f"ERROR: failed to load file {path}")
+    # print the errors with this config file
+    for error in e.errors(
+        include_url=False, include_context=False, include_input=False
+    ):
+        try:
+            problems = ", ".join([str(x) for x in error["loc"]])
+            print(f"\t{problems}: {error["msg"]}")
+        except:
+            pass

@@ -12,13 +12,10 @@ import json
 import time
 import logging
 
-from showcontrol.scheduler.config import Track
+from showcontrol.config import ConfigManager, ShowcontrolSchedule
+from showcontrol.config import Track
 from showcontrol.util import create_udp_client
-from .config import (
-    get_main_config,
-    read_schedule,
-    read_tracks,
-)
+
 
 logFormat = "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]: %(message)s"
 timeFormat = "%Y-%m-%d %H:%M:%S"
@@ -27,11 +24,11 @@ log = logging.getLogger(__name__)
 
 
 class SchedControl(object):
-    def __init__(self):
+    def __init__(self, config_manager: ConfigManager):
 
-        config = get_main_config()
+        config = config_manager.get_main_config()
         # read track configs
-        self.generate_track_list()
+        self.tracks = config_manager.read_tracks(identifier_is_name=True)
 
         # setup ports and ip for video panels
         self.video_broadcast_ip = config.video_screens.broadcast_ip
@@ -51,7 +48,7 @@ class SchedControl(object):
 
         # setup scheduler
         self.sched = AsyncIOScheduler()
-        self.add_jobs_to_scheduler()
+        self.add_jobs_to_scheduler(config_manager.read_schedule())
 
     def start_scheduler(self):
         try:
@@ -199,9 +196,9 @@ class SchedControl(object):
         else:
             raise KeyError("No Track is currently Playing")
 
-    def add_jobs_to_scheduler(self):
+    def add_jobs_to_scheduler(self, schedule_config: ShowcontrolSchedule):
         """Read the schedule specified in the config files, then add all jobs to the scheduler"""
-        for job in read_schedule().schedule:
+        for job in schedule_config.schedule:
             if job.command != "play":
                 log.warning(
                     f"could not add job from schedule: invalid command {job.command}"
@@ -230,14 +227,6 @@ class SchedControl(object):
         self.sched.add_job(
             self.play_track, "date", args=[track_id, False], run_date=when
         )
-
-    def generate_track_list(self):
-        """Reads the tracks directory and stores the tracks into the self.tracks dict
-
-        Raises:
-            KeyError: Raised when a track id is not unique
-        """
-        self.tracks = read_tracks(identifier_is_name=True)
 
     def get_upcoming_tracks(self, n_tracks=20):
         """Returns the next n_tracks scheduled tracks.
