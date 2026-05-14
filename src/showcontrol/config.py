@@ -157,6 +157,14 @@ class ConfigManager:
             return yaml.load(f, Loader=yaml.FullLoader)
 
     def get_main_config(self) -> Config:
+        """Returns the main config. First loads it either from file or defaults if it has not been loaded yet.
+
+        Raises:
+            ConfigError: raised when the config is faulty
+
+        Returns:
+            Config: main config file
+        """
         try:
             return self.config
         except AttributeError:

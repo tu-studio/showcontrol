@@ -1,20 +1,20 @@
-from pathlib import Path
-from sched import scheduler
-from fastapi import FastAPI, HTTPException
-from contextlib import asynccontextmanager
 import sys
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
-from showcontrol.scheduler.schedcontrol import SchedControl
-
-from .seamless_status.seamless_listener import SeamlessListener
 import click
 
+from pathlib import Path
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+
+
+from .config import ConfigError, ConfigManager
+from .scheduler.schedcontrol import SchedControl
+from .seamless_status.seamless_listener import SeamlessListener
 from .seamless_status.ws_connection_manager import WSConnectionManager
 from .seamless_status import router as status_router
 from .scheduler import router as scheduler_router
-from .config import ConfigError, ConfigManager
 
 
 @click.command(help="Start the backend of the seamless status")
