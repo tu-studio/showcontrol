@@ -1,3 +1,4 @@
+n_sources: 32
 reaper:
   port: 8000
   hostname: 3900-zg-ps-01.tu-ctrl
