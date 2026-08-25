@@ -48,7 +48,7 @@ def create_alternative_schedule(input_file, output_file, tracks_folder):
 
     # write schedule to file
     with open(output_file, "w") as f:
-        for t in tracks.values():
+        for t in sorted(tracks.values(), key=lambda x: x["audio_index"]):
             # write track title
             f.write(t["title"] + "\n")
 
