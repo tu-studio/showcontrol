@@ -6,7 +6,7 @@ import logging
 
 import click
 
-from .config import read_blocks, read_tracks
+from .config import read_blocks, read_config_option, read_tracks
 
 log = logging.getLogger()
 
@@ -127,6 +127,18 @@ def writeEntry(
 
 
 def round_up_time(timestamp: datetime, round_to_minutes=5):
+    """rounds up the timestamp to the next minute multiple of round_to_minutes.
+    If round_to_minutes=0, nothing will be done.
+
+    Args:
+        timestamp (datetime): timestamp
+        round_to_minutes (int, optional): A multiple of this will be the minute value. Defaults to 5.
+
+    Returns:
+        datetime: rounded timestamp
+    """
+    if round_to_minutes == 0:
+        return timestamp
     delta = timedelta(minutes=round_to_minutes)
     return timestamp + (datetime.min - timestamp) % delta
 
@@ -202,7 +214,8 @@ def create_schedule(path_config, output_file):
                     trackstart = round_up_time(
                         trackstart
                         + timedelta(minutes=track_minutes, seconds=track_seconds)
-                        + timedelta(seconds=block["track_padding"])
+                        + timedelta(seconds=block["track_padding"]),
+                        read_config_option(block, "round_up_time", int, 5),
                     )
                 # blockstart = blockstart + timedelta(minutes=block["length"])
                 blockstart = trackstart
